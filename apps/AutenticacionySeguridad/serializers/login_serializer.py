@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 
-from accounts.models import User
+from apps.AutenticacionySeguridad.models import User
 
 
 class LoginSerializer(serializers.Serializer):

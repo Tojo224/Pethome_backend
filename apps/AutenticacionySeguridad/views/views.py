@@ -10,5 +10,6 @@ Aqui entra:
 - manejo de response/status
 
 Una vista debe ser fácil de leer de arriba abajo.
-Si empieza a verse “pesada”, hay que mover lógica a services/ o selectors/, ya que sabe tener un poco de todo.
+Si empieza a verse “pesada”, hay que mover lógica a services/ o selectors/, ya que 
+sabe tener un poco de todo.
 """

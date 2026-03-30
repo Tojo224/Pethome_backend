@@ -4,8 +4,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from accounts.api.serializers.login_serializer import LoginSerializer
-from accounts.api.serializers.user_serializer import UserSerializer
+from apps.AutenticacionySeguridad.serializers.login_serializer import LoginSerializer
+from apps.AutenticacionySeguridad.serializers.user_serializer import UserSerializer
 
 
 def get_tokens_for_user(user):

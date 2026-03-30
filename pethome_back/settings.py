@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-    'accounts',
+    'apps.AutenticacionySeguridad',
+    'apps.GestionClientesyMascotas',
 
 ]
 
@@ -132,7 +133,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom user model
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = 'AutenticacionySeguridad.User'
 
 # ─── Django REST Framework ───────────────────────────────────
 REST_FRAMEWORK = {

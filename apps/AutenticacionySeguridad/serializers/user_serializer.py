@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from accounts.models import User, Rol
+from apps.AutenticacionySeguridad.models import User, Rol
 
 
 class RolSerializer(serializers.ModelSerializer):
