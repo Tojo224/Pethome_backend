@@ -6,6 +6,7 @@ from .views.perfil_views import (
     UsuarioClienteListView,
 )
 
+
 urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
@@ -14,4 +15,5 @@ urlpatterns = [
     path('usuarios/', UsuarioListCreateView.as_view(), name='usuario-list-create'),
     path('usuarios/clientes/', UsuarioClienteListView.as_view(), name='usuario-clientes-list'),
     path('usuarios/<int:pk>/', UsuarioDetailView.as_view(), name='usuario-detail'),
+
 ]

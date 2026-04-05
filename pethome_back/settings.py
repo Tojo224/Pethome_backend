@@ -53,7 +53,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'apps.AutenticacionySeguridad',
-    'apps.GestionClientesyMascotas'
+    'apps.GestionClientesyMascotas',
+    'apps.GestionServiciosyReserva',
     
 
 ]
