@@ -27,12 +27,21 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", # Puerto por defecto de Vite
     "http://127.0.0.1:5173",
     "http://localhost:3000", # Por si usas otro
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:\d+$",
+    r"^http://127\.0\.0\.1:\d+$",
 ]
 
 
