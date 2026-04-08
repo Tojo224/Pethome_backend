@@ -27,6 +27,7 @@ urlpatterns = [
     path('usuarios/', UsuarioListCreateView.as_view(), name='usuario-list-create'),
     path('usuarios/clientes/', UsuarioClienteListView.as_view(), name='usuario-clientes-list'),
     path('usuarios/<int:pk>/', UsuarioDetailView.as_view(), name='usuario-detail'),
+    
 
     path("bitacora/", BitacoraListView.as_view(), name="bitacora-list"),
     path("bitacora", BitacoraListView.as_view(), name="bitacora-list-no-slash"),

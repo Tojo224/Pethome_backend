@@ -1,4 +1,4 @@
-"""Package de modelos para GestionClientesyMascotas."""
+from .tipomascota import TipoMascota
+from .mascota import Mascota
 
-# Temporalmente no se expone ningún modelo desde esta app.
-__all__ = []
+__all__ = ["TipoMascota", "Mascota"]
