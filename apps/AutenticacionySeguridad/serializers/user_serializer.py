@@ -1,23 +1,17 @@
 from rest_framework import serializers
-
-from apps.AutenticacionySeguridad.models import User, Rol
-
-
-class RolSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Rol
-        fields = ["id_rol", "nombre", "descripcion"]
+from ..models import User
+from ..serializers.rol_serializer import RolSerializer
 
 
 class UserSerializer(serializers.ModelSerializer):
-    role = RolSerializer(read_only=True)
+    rol = RolSerializer(source="role", read_only=True)
 
     class Meta:
         model = User
         fields = [
             "id_usuario",
             "correo",
-            "role",
+            "rol",
             "is_active",
             "date_joined",
         ]

@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from django.db import transaction
-from ..models import Perfil, User, Rol
-
+from ..models import Perfil
+from ..services.perfil_service import create_user_with_profile, update_user_with_profile
 
 class PerfilSerializer(serializers.ModelSerializer):
     correo = serializers.EmailField(source="usuario.correo", read_only=True)
@@ -40,24 +39,42 @@ class PerfilCreateSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        # Extraemos los datos del usuario
-        correo = validated_data.pop('correo')
-        password = validated_data.pop('password')
-        id_rol = validated_data.pop('id_rol')
-        
-        # Usamos una transacción para que si algo falla, no se cree nada
-        with transaction.atomic():
-            # 1. Buscamos el rol
-            rol = Rol.objects.get(pk=id_rol)
-            
-            # 2. Creamos el usuario (usando create_user para que encripte la clave)
-            user = User.objects.create_user(
-                correo=correo,
-                password=password,
-                role=rol
-            )
-            
-            # 3. Creamos el perfil asociado
-            perfil = Perfil.objects.create(usuario=user, **validated_data)
-            
-            return perfil
+        return create_user_with_profile(
+            correo=validated_data["correo"],
+            password=validated_data["password"],
+            id_rol=validated_data["id_rol"],
+            nombre=validated_data["nombre"],
+            telefono=validated_data["telefono"],
+            direccion=validated_data["direccion"],
+        )
+    
+
+class PerfilUpdateSerializer(serializers.ModelSerializer):
+    correo = serializers.EmailField(required=False)
+    password = serializers.CharField(write_only=True, required=False)
+    id_rol = serializers.IntegerField(write_only=True, required=False)
+    estado = serializers.BooleanField(required=False)
+
+    class Meta:
+        model = Perfil
+        fields = [
+            "correo",
+            "password",
+            "id_rol",
+            "estado",
+            "nombre",
+            "telefono",
+            "direccion",
+        ]
+    
+    def update(self, instance, validated_data):
+        return update_user_with_profile(
+            perfil=instance,
+            correo=validated_data.get("correo"),
+            password=validated_data.get("password"),
+            id_rol=validated_data.get("id_rol"),
+            estado=validated_data.get("estado"),
+            nombre=validated_data.get("nombre"),
+            telefono=validated_data.get("telefono"),
+            direccion=validated_data.get("direccion"),
+        )

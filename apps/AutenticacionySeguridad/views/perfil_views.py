@@ -1,98 +1,217 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions, filters
-from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
-from ..models import Perfil
-from ..serializers import PerfilSerializer, PerfilCreateSerializer
+from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-class PerfilView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    
-    # IMPORTANTE: Definir el queryset base para los filtros
-    queryset = Perfil.objects.all()
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    
-    # Filtros exactos
-    filterset_fields = {
-        'usuario__is_active': ['exact'],
-        'usuario__role__nombre': ['exact'],
-    }
-    
-    # Barra de búsqueda
-    search_fields = ['nombre', 'usuario__correo', 'telefono', 'direccion']
+from apps.AutenticacionySeguridad.services.perfil_service import deactivate_user_profile
+from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
+
+from ..events.bitacora_events import BitacoraAccion, BitacoraModulo, BitacoraResultado
+from ..models import Perfil
+from ..permissions.permissions import IsAdminRole
+from ..serializers.perfil_serializer import (
+    PerfilSerializer,
+    PerfilCreateSerializer,
+    PerfilUpdateSerializer)
+
+
+def _registrar_bitacora_seguro(func, *args, **kwargs):
+    try:
+        func(*args, **kwargs)
+    except Exception:
+        # No impactar el flujo principal por un error de auditoría.
+        pass
+
+class UsuarioPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+class UsuarioListCreateView(APIView):
+    permission_classes = [IsAdminRole]
+
+    def get_queryset(self):
+        return (
+            Perfil.objects
+            .select_related("usuario", "usuario__role")
+            .all()
+            .order_by("-id_perfil")
+        )
+
+    def apply_filters(self, queryset, request):
+        search = request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(nombre__icontains=search)
+                | Q(usuario__correo__icontains=search)
+                | Q(telefono__icontains=search)
+                | Q(direccion__icontains=search)
+            )
+
+        rol = request.query_params.get("rol")
+        if rol:
+            queryset = queryset.filter(usuario__role__nombre=rol)
+
+        estado = request.query_params.get("estado")
+        if estado is not None:
+            estado_norm = estado.lower()
+            if estado_norm in {"true", "1", "si", "sí"}:
+                queryset = queryset.filter(usuario__is_active=True)
+            elif estado_norm in {"false", "0", "no"}:
+                queryset = queryset.filter(usuario__is_active=False)
+
+        return queryset
 
     def get(self, request):
-        queryset = self.queryset.all()
-        
-        # Aplicar filtros manualmente
-        for backend in list(self.filter_backends):
-            queryset = backend().filter_queryset(request, queryset, self)
+        queryset = self.apply_filters(self.get_queryset(), request)
 
-        serializer = PerfilSerializer(queryset, many=True)
-        return Response(serializer.data)
+        paginator = UsuarioPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = PerfilSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         serializer = PerfilCreateSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            try:
-                perfil = serializer.save()
-                # Para la respuesta, devolvemos el formato de lectura (con correo, rol, etc.)
-                response_serializer = PerfilSerializer(perfil)
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-            except Exception as e:
-                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-                
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
 
-class PerfilClienteView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    
-    # Configuramos los mismos backends de filtrado
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    
-    # Filtros exactos (Estado ya que el Rol siempre será Cliente)
-    filterset_fields = {
-        'usuario__is_active': ['exact'],
-    }
-    
-    # Barra de búsqueda (Searchbar)
-    search_fields = ['nombre', 'usuario__correo', 'telefono', 'direccion']
+        perfil = serializer.save()
+
+        _registrar_bitacora_seguro(
+            BitacoraService.registrar_evento,
+            accion=BitacoraAccion.CREAR,
+            descripcion="Usuario creado desde administración.",
+            usuario=request.user,
+            request=request,
+            modulo=BitacoraModulo.USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={
+                "correo": perfil.usuario.correo,
+                "id_rol": getattr(perfil.usuario.role, "id_rol", None),
+            },
+        )
+
+        return Response(PerfilSerializer(perfil).data, status=status.HTTP_201_CREATED)
+
+
+class UsuarioClienteListView(APIView):
+    permission_classes = [IsAdminRole]
 
     def get_queryset(self):
-        # 💡 La magia ocurre aquí: filtramos el queryset base por el nombre del rol
-        return Perfil.objects.filter(usuario__role__nombre='Cliente')
+        return Perfil.objects.select_related("usuario", "usuario__role").filter(
+            usuario__role__nombre="CLIENT"
+        ).order_by("-id_perfil")
 
     def get(self, request):
         queryset = self.get_queryset()
-        
-        # Aplicamos los filtros y búsqueda sobre el queryset ya filtrado de clientes
-        for backend in list(self.filter_backends):
-            queryset = backend().filter_queryset(request, queryset, self)
 
-        serializer = PerfilSerializer(queryset, many=True)
-        return Response(serializer.data)
+        search = request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(nombre__icontains=search)
+                | Q(usuario__correo__icontains=search)
+                | Q(telefono__icontains=search)
+                | Q(direccion__icontains=search)
+            )
 
-# --- ESTA ES LA CLASE QUE FALTABA ---
-class PerfilDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+        estado = request.query_params.get("estado")
+        if estado is not None:
+            estado_norm = estado.lower()
+            if estado_norm in {"true", "1", "si", "sí"}:
+                queryset = queryset.filter(usuario__is_active=True)
+            elif estado_norm in {"false", "0", "no"}:
+                queryset = queryset.filter(usuario__is_active=False)
+
+        paginator = UsuarioPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = PerfilSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+class UsuarioDetailView(APIView):
+    permission_classes = [IsAdminRole]
+
+    def get_queryset(self):
+        return Perfil.objects.select_related("usuario", "usuario__role")
+    
+    def get_object(self, pk):
+        return get_object_or_404(self.get_queryset(), pk=pk)
 
     def get(self, request, pk):
-        perfil = get_object_or_404(Perfil, pk=pk)
+        perfil = self.get_object(pk)
         serializer = PerfilSerializer(perfil)
         return Response(serializer.data)
 
     def put(self, request, pk):
-        perfil = get_object_or_404(Perfil, pk=pk)
-        serializer = PerfilSerializer(perfil, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        perfil = self.get_object(pk)
+        serializer = PerfilUpdateSerializer(perfil, data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        perfil = serializer.save()
+
+        _registrar_bitacora_seguro(
+            BitacoraService.registrar_evento,
+            accion=BitacoraAccion.ACTUALIZAR,
+            descripcion="Usuario actualizado desde administración.",
+            usuario=request.user,
+            request=request,
+            modulo=BitacoraModulo.USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={
+                "campos_actualizados": sorted(list(serializer.validated_data.keys())),
+                "correo_objetivo": perfil.usuario.correo,
+            },
+        )
+
+        return Response(PerfilSerializer(perfil).data)
+
+    def patch(self, request, pk):
+        perfil = self.get_object(pk)
+        serializer = PerfilUpdateSerializer(perfil, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        perfil = serializer.save()
+
+        _registrar_bitacora_seguro(
+            BitacoraService.registrar_evento,
+            accion=BitacoraAccion.ACTUALIZAR,
+            descripcion="Usuario actualizado parcialmente desde administración.",
+            usuario=request.user,
+            request=request,
+            modulo=BitacoraModulo.USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={
+                "campos_actualizados": sorted(list(serializer.validated_data.keys())),
+                "correo_objetivo": perfil.usuario.correo,
+            },
+        )
+
+        return Response(PerfilSerializer(perfil).data)
 
     def delete(self, request, pk):
-        perfil = get_object_or_404(Perfil, pk=pk)
-        perfil.delete()
+        perfil = self.get_object(pk)
+        deactivate_user_profile(perfil=perfil)
+
+        _registrar_bitacora_seguro(
+            BitacoraService.registrar_evento,
+            accion=BitacoraAccion.DESACTIVAR,
+            descripcion="Usuario desactivado desde administración.",
+            usuario=request.user,
+            request=request,
+            modulo=BitacoraModulo.USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={"correo_objetivo": perfil.usuario.correo},
+        )
+
         return Response(status=status.HTTP_204_NO_CONTENT)

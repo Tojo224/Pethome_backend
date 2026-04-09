@@ -1,217 +1,143 @@
-"""Views para Cliente - Endpoints CRUD."""
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
-from apps.GestionClientesyMascotas.models import Cliente
-from apps.GestionClientesyMascotas.api.serializers.cliente_serializer import (
-    ClienteSerializer,
-    ClienteCreateSerializer,
-    ClienteUpdateSerializer,
+from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.AutenticacionySeguridad.models import Perfil, Rol
+from apps.AutenticacionySeguridad.permissions.permissions import IsAdminRole, IsClientRole
+from apps.AutenticacionySeguridad.serializers.perfil_serializer import (
+    PerfilSerializer,
+    PerfilCreateSerializer,
+    PerfilUpdateSerializer,
 )
-from apps.GestionClientesyMascotas.selectors import cliente_selector
-from apps.GestionClientesyMascotas.services import cliente_service
+from apps.AutenticacionySeguridad.services.perfil_service import (
+    deactivate_user_profile,
+)
+
+
+class ClientePagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 
 class ClienteListCreateView(APIView):
-    """
-    GET /api/clientes/ - Obtiene lista de clientes
-    POST /api/clientes/ - Crea un nuevo cliente
-    """
-    permission_classes = [IsAuthenticated]
-    
+    permission_classes = [IsAdminRole]
+
+    def get_queryset(self):
+        return (
+            Perfil.objects
+            .select_related("usuario", "usuario__role")
+            .filter(usuario__role__nombre=Rol.RolName.CLIENT)
+            .order_by("-id_perfil")
+        )
+
     def get(self, request):
-        """Obtiene lista de todos los clientes con búsqueda opcional."""
-        search_term = request.query_params.get('search', '')
-        activos_solo = request.query_params.get('activos', 'false').lower() == 'true'
-        
-        if search_term:
-            clientes = cliente_selector.buscar_clientes(
-                search_term=search_term,
-                activos_solo=activos_solo
+        queryset = self.get_queryset()
+
+        search = request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(nombre__icontains=search)
+                | Q(usuario__correo__icontains=search)
+                | Q(telefono__icontains=search)
+                | Q(direccion__icontains=search)
             )
-        else:
-            clientes = cliente_selector.get_all_clientes(activos_solo=activos_solo)
-        
-        # Paginación
-        paginator = PageNumberPagination()
-        paginator.page_size = 20
-        paginated_datos = paginator.paginate_queryset(clientes, request)
-        
-        serializer = ClienteSerializer(paginated_datos, many=True)
+
+        estado = request.query_params.get("estado")
+        if estado is not None:
+            estado_norm = estado.lower()
+            if estado_norm in {"true", "1", "si", "sí"}:
+                queryset = queryset.filter(usuario__is_active=True)
+            elif estado_norm in {"false", "0", "no"}:
+                queryset = queryset.filter(usuario__is_active=False)
+
+        paginator = ClientePagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = PerfilSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
-    
+
     def post(self, request):
-        """Crea un nuevo cliente."""
-        serializer = ClienteCreateSerializer(data=request.data)
-        
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+        data = request.data.copy()
+
         try:
-            cliente = cliente_service.crear_cliente(
-                usuario=serializer.validated_data['usuario'],
-                datos=serializer.validated_data
-            )
+            rol_cliente = Rol.objects.get(nombre=Rol.RolName.CLIENT)
+            data["id_rol"] = rol_cliente.pk
+        except Rol.DoesNotExist:
             return Response(
-                ClienteSerializer(cliente).data,
-                status=status.HTTP_201_CREATED
+                {"detail": "El rol de cliente no está configurado en el sistema."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        except ValueError as e:
-            return Response(
-                {"detail": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+
+        serializer = PerfilCreateSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        perfil = serializer.save()
+        return Response(PerfilSerializer(perfil).data, status=status.HTTP_201_CREATED)
 
 
 class ClienteDetailView(APIView):
-    """
-    GET /api/clientes/{id}/ - Obtiene detalles de un cliente
-    PUT /api/clientes/{id}/ - Actualiza un cliente
-    DELETE /api/clientes/{id}/ - Elimina un cliente
-    """
-    permission_classes = [IsAuthenticated]
-    
-    def get_cliente(self, cliente_id):
-        """Helper para obtener cliente o retornar 404."""
-        cliente = cliente_selector.get_cliente_by_id(cliente_id)
-        if not cliente:
-            return None
-        return cliente
-    
-    def get(self, request, cliente_id):
-        """Obtiene los detalles de un cliente específico."""
-        cliente = self.get_cliente(cliente_id)
-        if not cliente:
-            return Response(
-                {"detail": "Cliente no encontrado."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = ClienteSerializer(cliente)
+    permission_classes = [IsAdminRole]
+
+    def get_queryset(self):
+        return (
+            Perfil.objects
+            .select_related("usuario", "usuario__role")
+            .filter(usuario__role__nombre=Rol.RolName.CLIENT)
+        )
+
+    def get_object(self, pk):
+        return get_object_or_404(self.get_queryset(), pk=pk)
+
+    def get(self, request, pk):
+        perfil = self.get_object(pk)
+        serializer = PerfilSerializer(perfil)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    def put(self, request, cliente_id):
-        """Actualiza completamente un cliente (PUT)."""
-        cliente = self.get_cliente(cliente_id)
-        if not cliente:
-            return Response(
-                {"detail": "Cliente no encontrado."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = ClienteUpdateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        cliente_actualizado = cliente_service.actualizar_cliente(
-            cliente,
-            serializer.validated_data
-        )
-        
-        return Response(
-            ClienteSerializer(cliente_actualizado).data,
-            status=status.HTTP_200_OK
-        )
-    
-    def patch(self, request, cliente_id):
-        """Actualiza parcialmente un cliente (PATCH)."""
-        cliente = self.get_cliente(cliente_id)
-        if not cliente:
-            return Response(
-                {"detail": "Cliente no encontrado."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = ClienteUpdateSerializer(
-            data=request.data,
-            partial=True
-        )
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        cliente_actualizado = cliente_service.actualizar_cliente(
-            cliente,
-            serializer.validated_data
-        )
-        
-        return Response(
-            ClienteSerializer(cliente_actualizado).data,
-            status=status.HTTP_200_OK
-        )
-    
-    def delete(self, request, cliente_id):
-        """Elimina un cliente."""
-        cliente = self.get_cliente(cliente_id)
-        if not cliente:
-            return Response(
-                {"detail": "Cliente no encontrado."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        cliente_service.eliminar_cliente(cliente)
-        return Response(
-            {"detail": "Cliente eliminado exitosamente."},
-            status=status.HTTP_204_NO_CONTENT
-        )
+
+    def put(self, request, pk):
+        perfil = self.get_object(pk)
+        serializer = PerfilUpdateSerializer(perfil, data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        perfil = serializer.save()
+        return Response(PerfilSerializer(perfil).data, status=status.HTTP_200_OK)
+
+    def patch(self, request, pk):
+        perfil = self.get_object(pk)
+        serializer = PerfilUpdateSerializer(perfil, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        perfil = serializer.save()
+        return Response(PerfilSerializer(perfil).data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        perfil = self.get_object(pk)
+        deactivate_user_profile(perfil=perfil)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ClienteToggleActivoView(APIView):
-    """
-    POST /api/clientes/{id}/toggle-activo/ - Activa/Desactiva un cliente
-    """
-    permission_classes = [IsAuthenticated]
-    
-    def post(self, request, cliente_id):
-        """Alterna el estado activo/inactivo de un cliente."""
-        cliente = cliente_selector.get_cliente_by_id(cliente_id)
-        if not cliente:
-            return Response(
-                {"detail": "Cliente no encontrado."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        if cliente.activo:
-            cliente = cliente_service.desactivar_cliente(cliente)
-        else:
-            cliente = cliente_service.activar_cliente(cliente)
-        
-        return Response(
-            {
-                "detail": f"Cliente {'desactivado' if not cliente.activo else 'activado'} exitosamente.",
-                "cliente": ClienteSerializer(cliente).data
-            },
-            status=status.HTTP_200_OK
+class ClienteMeView(APIView):
+    permission_classes = [IsClientRole]
+
+    def get_object(self, request):
+        return get_object_or_404(
+            Perfil.objects.select_related("usuario", "usuario__role"),
+            usuario=request.user,
+            usuario__role__nombre=Rol.RolName.CLIENT,
         )
 
-
-class ClientePorUsuarioView(APIView):
-    """
-    GET /api/clientes/usuario/{usuario_id}/ - Obtiene el cliente de un usuario
-    """
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request, usuario_id):
-        """Obtiene el cliente asociado a un usuario."""
-        cliente = cliente_selector.get_cliente_by_usuario(usuario_id)
-        if not cliente:
-            return Response(
-                {"detail": "Cliente no encontrado para este usuario."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = ClienteSerializer(cliente)
+    def get(self, request):
+        perfil = self.get_object(request)
+        serializer = PerfilSerializer(perfil)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        perfil = self.get_object(request)
+        serializer = PerfilUpdateSerializer(perfil, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        perfil = serializer.save()
+        return Response(PerfilSerializer(perfil).data, status=status.HTTP_200_OK)
