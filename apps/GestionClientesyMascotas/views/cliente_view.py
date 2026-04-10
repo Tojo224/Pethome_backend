@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.AutenticacionySeguridad.models import Perfil, Rol
-from apps.AutenticacionySeguridad.permissions import IsAdminRole, IsClientRole
+from apps.AutenticacionySeguridad.permissions.permissions import IsAdminRole, IsClientRole
 from apps.AutenticacionySeguridad.serializers.perfil_serializer import (
     PerfilSerializer,
     PerfilCreateSerializer,

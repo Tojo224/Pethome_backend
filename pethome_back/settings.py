@@ -148,6 +148,7 @@ AUTH_USER_MODEL = 'AutenticacionySeguridad.User'
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -163,7 +164,9 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "AUTH_HEADER_TYPES": ("Bearer",),
+    # Acepta variantes comunes para evitar fallos por casing/prefijo del cliente.
+    "AUTH_HEADER_TYPES": ("Bearer", "bearer", "JWT", "jwt", "Token", "token"),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id_usuario",
     "USER_ID_CLAIM": "user_id",
     

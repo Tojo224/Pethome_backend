@@ -7,13 +7,23 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.AutenticacionySeguridad.services.perfil_service import deactivate_user_profile
+from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
 
+from ..events.bitacora_events import BitacoraAccion, BitacoraModulo, BitacoraResultado
 from ..models import Perfil
-from ..permissions import IsAdminRole
+from ..permissions.permissions import IsAdminRole
 from ..serializers.perfil_serializer import (
     PerfilSerializer,
     PerfilCreateSerializer,
     PerfilUpdateSerializer)
+
+
+def _registrar_bitacora_seguro(func, *args, **kwargs):
+    try:
+        func(*args, **kwargs)
+    except Exception:
+        # No impactar el flujo principal por un error de auditoría.
+        pass
 
 class UsuarioPagination(PageNumberPagination):
     page_size = 20
@@ -69,6 +79,23 @@ class UsuarioListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         perfil = serializer.save()
+
+        _registrar_bitacora_seguro(
+            BitacoraService.registrar_evento,
+            accion=BitacoraAccion.CREAR,
+            descripcion="Usuario creado desde administración.",
+            usuario=request.user,
+            request=request,
+            modulo=BitacoraModulo.USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={
+                "correo": perfil.usuario.correo,
+                "id_rol": getattr(perfil.usuario.role, "id_rol", None),
+            },
+        )
+
         return Response(PerfilSerializer(perfil).data, status=status.HTTP_201_CREATED)
 
 
@@ -126,6 +153,23 @@ class UsuarioDetailView(APIView):
         serializer.is_valid(raise_exception=True)
 
         perfil = serializer.save()
+
+        _registrar_bitacora_seguro(
+            BitacoraService.registrar_evento,
+            accion=BitacoraAccion.ACTUALIZAR,
+            descripcion="Usuario actualizado desde administración.",
+            usuario=request.user,
+            request=request,
+            modulo=BitacoraModulo.USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={
+                "campos_actualizados": sorted(list(serializer.validated_data.keys())),
+                "correo_objetivo": perfil.usuario.correo,
+            },
+        )
+
         return Response(PerfilSerializer(perfil).data)
 
     def patch(self, request, pk):
@@ -134,9 +178,40 @@ class UsuarioDetailView(APIView):
         serializer.is_valid(raise_exception=True)
 
         perfil = serializer.save()
+
+        _registrar_bitacora_seguro(
+            BitacoraService.registrar_evento,
+            accion=BitacoraAccion.ACTUALIZAR,
+            descripcion="Usuario actualizado parcialmente desde administración.",
+            usuario=request.user,
+            request=request,
+            modulo=BitacoraModulo.USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={
+                "campos_actualizados": sorted(list(serializer.validated_data.keys())),
+                "correo_objetivo": perfil.usuario.correo,
+            },
+        )
+
         return Response(PerfilSerializer(perfil).data)
 
     def delete(self, request, pk):
         perfil = self.get_object(pk)
         deactivate_user_profile(perfil=perfil)
+
+        _registrar_bitacora_seguro(
+            BitacoraService.registrar_evento,
+            accion=BitacoraAccion.DESACTIVAR,
+            descripcion="Usuario desactivado desde administración.",
+            usuario=request.user,
+            request=request,
+            modulo=BitacoraModulo.USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={"correo_objetivo": perfil.usuario.correo},
+        )
+
         return Response(status=status.HTTP_204_NO_CONTENT)
