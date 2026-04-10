@@ -33,8 +33,8 @@ static_root/
 
 # ─── Migraciones (opcional: algunos equipos sí las versión) ─
 # Si tu equipo las comparte, elimina estas dos líneas:
-# */migrations/*.py
-# !*/migrations/__init__.py
+*/migrations/*.py
+!*/migrations/__init__.py
 
 # ─── Testing y cobertura ────────────────────────────────────
 .coverage
