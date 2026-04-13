@@ -1,14 +1,33 @@
-"""URLs para Cliente."""
+"""URLs para Cliente y Mascota."""
 
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
 from .views.cliente_view import ClienteDetailView, ClienteListCreateView, ClienteMeView
 from .views.register_cliente_view import RegisterClienteView
 
-app_name = 'clientes'
+from .views.mascota_view import MascotaViewSet
+from .views.especie_view import EspecieListView
+from .views.raza_view import RazaListView
+from .views.usuario_view import UsuarioListView
+
+app_name = "clientes"
+
+router = DefaultRouter()
+router.register(r"mascotas", MascotaViewSet, basename="mascota")
 
 urlpatterns = [
+    # CLIENTES
     path("register/", RegisterClienteView.as_view(), name="cliente-register"),
     path("me/", ClienteMeView.as_view(), name="cliente-me"),
-    path('', ClienteListCreateView.as_view(), name='cliente-list-create'),
-    path('<int:pk>/', ClienteDetailView.as_view(), name='cliente-detail'),
+    path("clientes/", ClienteListCreateView.as_view(), name="cliente-list-create"),
+    path("clientes/<int:pk>/", ClienteDetailView.as_view(), name="cliente-detail"),
+
+    # MASCOTAS
+    path("", include(router.urls)),
+
+    # CATÁLOGOS
+    path("especies/", EspecieListView.as_view(), name="especie-list"),
+    path("razas/", RazaListView.as_view(), name="raza-list"),
+    path("usuarios/", UsuarioListView.as_view(), name="usuario-list"),
 ]

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.AutenticacionySeguridad.enums.roles import RoleEnum
-from apps.AutenticacionySeguridad.permissions import IsAdminOrClient
+from apps.AutenticacionySeguridad.permissions.permissions import IsAdminOrClient
 
 from ..models import Cita
 from ..serializers.citas_serializer import (
