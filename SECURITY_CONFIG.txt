@@ -1,0 +1,56 @@
+# settings_production.py - Configuraciones Adicionales de Seguridad para Producción
+# ↓ Agrega estas líneas al final de pethome_back/settings.py
+
+# ═══════════════════════════════════════════════════════════
+# CONFIGURACIÓN DE SEGURIDAD PARA PRODUCCIÓN
+# ═══════════════════════════════════════════════════════════
+
+# Solo en producción (cuando DEBUG=False)
+if not DEBUG:
+    # ─── HTTPS ───
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # ─── Headers de Seguridad ───
+    SECURE_HSTS_SECONDS = 31536000  # Un año
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # ─── Content Security ───
+    SECURE_CONTENT_SECURITY_POLICY = {
+        "default-src": ("'self'",),
+        "script-src": ("'self'", "'unsafe-inline'"),
+        "style-src": ("'self'", "'unsafe-inline'"),
+    }
+    
+    # ─── Cookies ───
+    CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
+
+# ═══════════════════════════════════════════════════════════
+# CONFIGURACIÓN DE LOGGING
+# ═══════════════════════════════════════════════════════════
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+    },
+}

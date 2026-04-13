@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: homepet-api
+    runtime: python
+    runtimeVersion: 3.11
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn pethome_back.wsgi --log-file -"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: SECRET_KEY
+        fromSecret: SECRET_KEY
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "*.onrender.com,localhost"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: homepet_db
+          property: connectionString
+
+databases:
+  - name: homepet_db
+    databaseName: homepet_db
+    region: ohio
