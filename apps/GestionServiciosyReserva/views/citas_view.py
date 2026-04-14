@@ -8,7 +8,7 @@ from apps.AutenticacionySeguridad.events.bitacora_events import (
     BitacoraModulo,
     BitacoraResultado,
 )
-from apps.AutenticacionySeguridad.permissions.permissions import IsAdminOrClient
+from apps.AutenticacionySeguridad.permissions.permissions import IsAdminOrClient, IsClientRole
 from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
 
 from ..models import Cita
@@ -27,6 +27,11 @@ def _registrar_bitacora_seguro(func, *args, **kwargs):
 
 class CitaListCreateView(APIView):
     permission_classes = [IsAdminOrClient]
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsClientRole()]
+        return super().get_permissions()
 
     def get_queryset(self, request):
         queryset = (

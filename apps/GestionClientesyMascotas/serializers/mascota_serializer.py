@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from apps.AutenticacionySeguridad.enums.roles import RoleEnum
 from apps.GestionClientesyMascotas.models.mascota import Mascota
 from apps.GestionClientesyMascotas.models.especie import Especie
 from apps.GestionClientesyMascotas.models.raza import Raza
@@ -44,11 +45,12 @@ class MascotaSerializer(serializers.ModelSerializer):
 
     usuario_id = UsuarioChoiceField(
         queryset=User.objects.filter(
-            role_id=3,
+            role__nombre=RoleEnum.CLIENT.value,
             is_active=True
         ).select_related("perfil"),
         source="usuario",
-        write_only=True
+        write_only=True,
+        required=False
     )
     especie_id = serializers.PrimaryKeyRelatedField(
         queryset=Especie.objects.all(),
@@ -88,8 +90,18 @@ class MascotaSerializer(serializers.ModelSerializer):
         read_only_fields = ["id_mascota", "fecha_registro"]
 
     def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
         especie = attrs.get("especie")
         raza = attrs.get("raza")
+
+        if (
+            not self.instance
+            and user
+            and getattr(user, "is_authenticated", False)
+            and getattr(getattr(user, "role", None), "nombre", None) == RoleEnum.CLIENT.value
+        ):
+            attrs["usuario"] = user
 
         if self.instance:
             if especie is None:

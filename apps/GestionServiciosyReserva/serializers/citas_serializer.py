@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.AutenticacionySeguridad.enums.roles import RoleEnum
@@ -69,6 +70,11 @@ class CitaSerializer(serializers.ModelSerializer):
             "direccion_cita",
             getattr(self.instance, "direccion_cita", None),
         )
+        fecha_programada = data.get(
+            "fecha_programada",
+            getattr(self.instance, "fecha_programada", None),
+        )
+        hora_inicio = data.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
 
         if (
             mascota
@@ -100,6 +106,21 @@ class CitaSerializer(serializers.ModelSerializer):
             if modalidad_precio != modalidad:
                 raise serializers.ValidationError(
                     {"modalidad": "La modalidad no coincide con la del precio seleccionado."}
+                )
+
+        if fecha_programada and hora_inicio:
+            fecha_hora_programada = timezone.datetime.combine(
+                fecha_programada,
+                hora_inicio,
+            )
+            fecha_hora_programada = timezone.make_aware(
+                fecha_hora_programada,
+                timezone.get_current_timezone(),
+            )
+
+            if fecha_hora_programada <= timezone.localtime():
+                raise serializers.ValidationError(
+                    {"fecha_programada": "La fecha y hora de la cita deben ser futuras."}
                 )
 
         if modalidad == Cita.ModalidadChoices.DOMICILIO:
