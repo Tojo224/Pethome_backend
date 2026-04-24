@@ -31,7 +31,7 @@ class ConsultaClinicaListCreateView(generics.ListCreateAPIView):
                 "archivos_clinicos",
                 "receta__detalles",
             )
-            .order_by("-fecha_consulta")
+            .order_by("fecha_consulta", "id_consulta_clinica")
         )
 
     def perform_create(self, serializer):
@@ -44,7 +44,7 @@ class ConsultaClinicaListCreateView(generics.ListCreateAPIView):
         serializer.save(historial_clinico=historial)
 
 
-class ConsultaClinicaDetailView(generics.RetrieveAPIView):
+class ConsultaClinicaDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = ConsultaClinicaSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = "id_consulta_clinica"

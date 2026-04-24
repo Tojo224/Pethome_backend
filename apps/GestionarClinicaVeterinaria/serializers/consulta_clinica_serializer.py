@@ -7,16 +7,19 @@ from apps.GestionarClinicaVeterinaria.serializers.receta_serializer import Recet
 from apps.GestionarClinicaVeterinaria.serializers.vacuna_aplicada_serializer import VacunaAplicadaSerializer
 from apps.GestionarClinicaVeterinaria.serializers.archivo_clinico_serializer import ArchivoClinicoSerializer
 
+
 class VeterinarioRelatedField(serializers.PrimaryKeyRelatedField):
     def display_value(self, instance):
         if hasattr(instance, "perfil") and instance.perfil and instance.perfil.nombre:
             return instance.perfil.nombre
         return instance.correo
+
+
 class ConsultaClinicaSerializer(serializers.ModelSerializer):
     usuario_veterinario = VeterinarioRelatedField(
         queryset=User.objects.filter(
             role__nombre=RoleEnum.VETERINARIAN.value,
-            is_active=True
+            is_active=True,
         )
     )
 
@@ -27,19 +30,19 @@ class ConsultaClinicaSerializer(serializers.ModelSerializer):
 
     veterinario_nombre = serializers.CharField(
         source="usuario_veterinario.perfil.nombre",
-        read_only=True
+        read_only=True,
     )
     mascota_nombre = serializers.CharField(
         source="historial_clinico.mascota.nombre",
-        read_only=True
+        read_only=True,
     )
     propietario_id = serializers.IntegerField(
         source="historial_clinico.mascota.usuario.id_usuario",
-        read_only=True
+        read_only=True,
     )
     propietario_nombre = serializers.CharField(
         source="historial_clinico.mascota.usuario.perfil.nombre",
-        read_only=True
+        read_only=True,
     )
 
     class Meta:
@@ -72,6 +75,26 @@ class ConsultaClinicaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id_consulta_clinica",
+            "historial_clinico",
+            "veterinario_nombre",
+            "mascota_nombre",
+            "propietario_id",
+            "propietario_nombre",
             "fecha_creacion",
             "fecha_actualizacion",
+            "tratamientos",
+            "receta",
+            "vacunas_aplicadas",
+            "archivos_clinicos",
         ]
+        extra_kwargs = {
+            "cita": {"required": False, "allow_null": True},
+            "diagnostico": {"required": False, "allow_null": True},
+            "observaciones": {"required": False, "allow_null": True},
+            "peso": {"required": False, "allow_null": True},
+            "temperatura": {"required": False, "allow_null": True},
+            "frecuencia_cardiaca": {"required": False, "allow_null": True},
+            "frecuencia_respiratoria": {"required": False, "allow_null": True},
+            "proxima_revision": {"required": False, "allow_null": True},
+            "estado": {"required": False},
+        }
