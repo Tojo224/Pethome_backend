@@ -1,21 +1,43 @@
 from django.urls import path
-from apps.GestionarClinicaVeterinaria.views import (
+
+from apps.GestionarClinicaVeterinaria.views.historial_clinico_view import (
+    HistorialClinicoListCreateView,
     HistorialClinicoPorMascotaView,
+)
+from apps.GestionarClinicaVeterinaria.views.consulta_clinica_view import (
     ConsultaClinicaListCreateView,
     ConsultaClinicaDetailView,
+)
+from apps.GestionarClinicaVeterinaria.views.tratamiento_view import (
     TratamientoListCreateView,
     TratamientoDetailView,
+)
+from apps.GestionarClinicaVeterinaria.views.receta_view import (
     RecetaPorConsultaView,
     RecetaDetailView,
+)
+from apps.GestionarClinicaVeterinaria.views.detalle_receta_view import (
     DetalleRecetaListCreateView,
     DetalleRecetaDetailView,
+)
+from apps.GestionarClinicaVeterinaria.views.vacuna_aplicada_view import (
     VacunaAplicadaListCreateView,
     VacunaAplicadaDetailView,
-    ArchivoClinicoListCreateView,
-    ArchivoClinicoDetailView,
+)
+from apps.GestionarClinicaVeterinaria.views.archivo_clinico_view import (
+    ArchivoClinicoCreateView,
+    ArchivoClinicoUpdateView,
+)
+from apps.GestionarClinicaVeterinaria.views.veterinario_view import (
+    VeterinarioListView,
 )
 
 urlpatterns = [
+    path(
+        "historiales/",
+        HistorialClinicoListCreateView.as_view(),
+        name="historial-clinico-list-create",
+    ),
     path(
         "mascotas/<int:id_mascota>/historial/",
         HistorialClinicoPorMascotaView.as_view(),
@@ -73,12 +95,17 @@ urlpatterns = [
     ),
     path(
         "consultas/<int:id_consulta_clinica>/archivos/",
-        ArchivoClinicoListCreateView.as_view(),
-        name="archivo-clinico-list-create",
+        ArchivoClinicoCreateView.as_view(),
+        name="archivo-clinico-create",
     ),
     path(
         "archivos/<int:id_archivo_clinico>/",
-        ArchivoClinicoDetailView.as_view(),
-        name="archivo-clinico-detail",
+        ArchivoClinicoUpdateView.as_view(),
+        name="archivo-clinico-update",
+    ),
+    path(
+        "veterinarios/",
+        VeterinarioListView.as_view(),
+        name="veterinario-list",
     ),
 ]

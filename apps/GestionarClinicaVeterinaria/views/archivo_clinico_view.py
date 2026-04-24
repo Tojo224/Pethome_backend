@@ -1,77 +1,44 @@
-from django.shortcuts import get_object_or_404
 from rest_framework import generics
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.shortcuts import get_object_or_404
 
-from apps.GestionarClinicaVeterinaria.models import ConsultaClinica, ArchivoClinico
-from apps.GestionarClinicaVeterinaria.serializers import ArchivoClinicoSerializer
+from apps.GestionarClinicaVeterinaria.models import ArchivoClinico, ConsultaClinica
+from apps.GestionarClinicaVeterinaria.serializers.archivo_clinico_serializer import (
+    ArchivoClinicoSerializer,
+)
 
 
-class ArchivoClinicoListCreateView(generics.ListCreateAPIView):
+class ArchivoClinicoCreateView(generics.CreateAPIView):
     serializer_class = ArchivoClinicoSerializer
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    parser_classes = [MultiPartParser, FormParser]
 
-    def get_queryset(self):
-        id_consulta = self.kwargs["id_consulta_clinica"]
-        return (
-            ArchivoClinico.objects.filter(
-                consulta_clinica_id=id_consulta,
-                estado=True,
-            )
-            .select_related("consulta_clinica")
-            .order_by("-fecha_subida", "-id_archivo_clinico")
-        )
-
-    def perform_create(self, serializer):
-        id_consulta = self.kwargs["id_consulta_clinica"]
+    def create(self, request, *args, **kwargs):
         consulta = get_object_or_404(
             ConsultaClinica,
-            pk=id_consulta,
-            estado=True,
+            pk=kwargs["id_consulta_clinica"]
         )
 
-        archivo = self.request.FILES.get("archivo")
-        nombre_archivo = self.request.data.get("nombre_archivo")
-        extension = None
-        tamano_bytes = None
-        tipo_archivo = self.request.data.get("tipo_archivo", "OTRO")
+        data = request.data.copy()
+        data["consulta_clinica"] = consulta.pk
 
-        if archivo:
-            extension = archivo.name.split(".")[-1].lower() if "." in archivo.name else ""
-            tamano_bytes = archivo.size
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
 
-            if not nombre_archivo:
-                nombre_archivo = archivo.name
+        from rest_framework.response import Response
+        from rest_framework import status
 
-            if tipo_archivo == "OTRO":
-                if extension in ["jpg", "jpeg", "png", "webp"]:
-                    tipo_archivo = "IMAGEN"
-                elif extension == "pdf":
-                    tipo_archivo = "PDF"
-                elif extension in ["doc", "docx"]:
-                    tipo_archivo = "WORD"
-
-        serializer.save(
-            consulta_clinica=consulta,
-            nombre_archivo=nombre_archivo or "archivo_clinico",
-            extension=extension,
-            tamano_bytes=tamano_bytes,
-            tipo_archivo=tipo_archivo,
-        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class ArchivoClinicoDetailView(generics.RetrieveUpdateDestroyAPIView):
+class ArchivoClinicoUpdateView(generics.RetrieveUpdateAPIView):
     serializer_class = ArchivoClinicoSerializer
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-    lookup_url_kwarg = "id_archivo_clinico"
+    parser_classes = [MultiPartParser, FormParser]
+    queryset = ArchivoClinico.objects.all()
+    lookup_field = "id_archivo_clinico"
 
-    def get_queryset(self):
-        return ArchivoClinico.objects.filter(
-            estado=True
-        ).select_related("consulta_clinica")
-
-    def perform_destroy(self, instance):
-        instance.estado = False
-        instance.save(update_fields=["estado"])
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)

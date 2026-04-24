@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/gestion/servicios/", include("apps.GestionServiciosyReserva.urls")),
     path("api/gestion/clinica/", include("apps.GestionarClinicaVeterinaria.urls")),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path("api/gestion/inventario/", include("apps.GestionInventarioProveedores.urls")),
 ]
 
 if settings.DEBUG:
