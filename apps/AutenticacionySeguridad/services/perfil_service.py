@@ -5,7 +5,7 @@ from ..models import Perfil, User, Rol
 
 # Logica de negocio para crear y actualizar perfiles
 @transaction.atomic
-def create_user_with_profile(*, correo, password, id_rol, nombre, telefono, direccion):
+def create_user_with_profile(*, correo, password, id_rol, nombre, telefono, direccion, estado=None):
     try:
         rol = Rol.objects.get(pk=id_rol)
     except Rol.DoesNotExist as exc:
@@ -19,6 +19,10 @@ def create_user_with_profile(*, correo, password, id_rol, nombre, telefono, dire
         password=password,
         role=rol,
     )
+
+    if estado is not None:
+        user.is_active = estado
+        user.save(update_fields=["is_active"])
 
     perfil = Perfil.objects.create(
         usuario=user,

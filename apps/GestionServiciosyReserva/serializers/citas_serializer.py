@@ -1,5 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
+from datetime import datetime, timedelta
 
 from apps.AutenticacionySeguridad.enums.roles import RoleEnum
 
@@ -50,7 +51,7 @@ class CitaSerializer(serializers.ModelSerializer):
             "precio",
             "fecha_generada",
             "fecha_confirmacion",
-            "hora_fin",
+            "hora_fin",  # se calcula automáticamente
             "estado",
             "motivo_cancelacion",
         ]
@@ -75,6 +76,8 @@ class CitaSerializer(serializers.ModelSerializer):
             getattr(self.instance, "fecha_programada", None),
         )
         hora_inicio = data.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
+
+        # ---------------- VALIDACIONES EXISTENTES ----------------
 
         if (
             mascota
@@ -123,6 +126,8 @@ class CitaSerializer(serializers.ModelSerializer):
                     {"fecha_programada": "La fecha y hora de la cita deben ser futuras."}
                 )
 
+        # ---------------- VALIDACIÓN DE MODALIDAD ----------------
+
         if modalidad == Cita.ModalidadChoices.DOMICILIO:
             if servicio and not servicio.disponible_domicilio:
                 raise serializers.ValidationError(
@@ -144,6 +149,63 @@ class CitaSerializer(serializers.ModelSerializer):
         if modalidad == Cita.ModalidadChoices.CLINICA:
             data["direccion_cita"] = None
 
+        # ---------------- VALIDACIÓN DE HORARIO ----------------
+
+        HORA_APERTURA = 8
+        HORA_CIERRE = 18
+
+        if hora_inicio:
+            if hora_inicio.hour < HORA_APERTURA or hora_inicio.hour >= HORA_CIERRE:
+                raise serializers.ValidationError({
+                    "hora_inicio": f"Horario permitido: {HORA_APERTURA}:00 - {HORA_CIERRE}:00"
+                })
+
+        # ---------------- VALIDACIÓN DE CHOQUES ----------------
+
+        if fecha_programada and hora_inicio:
+
+            inicio = datetime.combine(fecha_programada, hora_inicio)
+
+            # calcular hora_fin automáticamente
+            if servicio and servicio.duracion_estimada:
+                fin = inicio + timedelta(minutes=servicio.duracion_estimada)
+                data["hora_fin"] = fin.time()
+            else:
+                hora_fin = data.get("hora_fin") or getattr(self.instance, "hora_fin", None)
+                if not hora_fin:
+                    raise serializers.ValidationError({
+                        "hora_fin": "Debe especificar hora_fin o configurar duración del servicio"
+                    })
+                fin = datetime.combine(fecha_programada, hora_fin)
+
+            if inicio >= fin:
+                raise serializers.ValidationError(
+                    {"hora_inicio": "La hora fin debe ser mayor a la hora inicio"}
+                )
+
+            #  filtrar por modalidad 
+            citas = Cita.objects.filter(
+                fecha_programada=fecha_programada,
+                modalidad=modalidad,
+                estado__in=[
+                    Cita.EstadoChoices.PENDIENTE,
+                    Cita.EstadoChoices.CONFIRMADA,
+                ],
+            )
+
+            # excluir si es edición
+            if self.instance:
+                citas = citas.exclude(id_cita=self.instance.id_cita)
+
+            for cita in citas:
+                inicio_db = datetime.combine(cita.fecha_programada, cita.hora_inicio)
+                fin_db = datetime.combine(cita.fecha_programada, cita.hora_fin)
+
+                if inicio < fin_db and fin > inicio_db:
+                    raise serializers.ValidationError({
+                         "Ya existe una cita en ese horario para esta modalidad"
+                    })
+
         return data
 
     def create(self, validated_data):
@@ -163,7 +225,7 @@ class CitaEstadoUpdateSerializer(serializers.ModelSerializer):
 
         if estado == Cita.EstadoChoices.CANCELADA and not (motivo_cancelacion or "").strip():
             raise serializers.ValidationError(
-                {"motivo_cancelacion": "Debes indicar el motivo de cancelación."}
+                {"Debes indicar el motivo de cancelación."}
             )
 
         return data

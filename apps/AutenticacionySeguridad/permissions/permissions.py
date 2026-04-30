@@ -95,7 +95,13 @@ class IsAdminOrVeterinarian(HasRolePermission):
     ]
     message = "Solo administradores o veterinarios pueden realizar esta acción."
 
-
+class IsClientAdminOrVeterinario(HasRolePermission):
+    allowed_roles = [
+        RoleEnum.ADMIN.value,
+        RoleEnum.VETERINARIAN.value,
+        RoleEnum.CLIENT.value,
+    ]
+    message = "Solo administradores, veterinarios o clientes pueden realizar esta acción."
 class IsAdminOrClient(HasRolePermission):
     allowed_roles = [
         RoleEnum.ADMIN.value,
