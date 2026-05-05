@@ -4,6 +4,11 @@ from ..models import PrecioServicio
 class PrecioServicioSerializer(serializers.ModelSerializer):
     servicio_nombre = serializers.CharField(source="servicio.nombre", read_only=True)
 
+    def _tenant_id(self):
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        return getattr(tenant, "id", None)
+
     class Meta:
         model = PrecioServicio
         fields = [
@@ -18,13 +23,30 @@ class PrecioServicioSerializer(serializers.ModelSerializer):
         ]
 
     def validate_servicio(self, value):
+        tenant_id = self._tenant_id()
+        if tenant_id is None:
+            raise serializers.ValidationError("No se pudo resolver el tenant activo.")
+
+        if value.veterinaria_id != tenant_id:
+            raise serializers.ValidationError(
+                "El servicio no pertenece a la veterinaria actual."
+            )
         if not value.estado:
             raise serializers.ValidationError(
                 "No se puede asignar un precio a un servicio inactivo."
             )
         return value
 
+    def validate_precio(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El precio debe ser mayor a cero.")
+        return value
+
     def validate(self, data):
+        tenant_id = self._tenant_id()
+        if tenant_id is None:
+            raise serializers.ValidationError("No se pudo resolver el tenant activo.")
+
         servicio = data.get("servicio", self.instance.servicio if self.instance else None)
         variacion = data.get("variacion", self.instance.variacion if self.instance else None)
         modalidad = data.get("modalidad", self.instance.modalidad if self.instance else None)
@@ -34,6 +56,7 @@ class PrecioServicioSerializer(serializers.ModelSerializer):
                 servicio=servicio,
                 variacion__iexact=variacion.strip(),
                 modalidad__iexact=modalidad.strip() if modalidad else modalidad,
+                veterinaria_id=tenant_id,
             )
 
             if self.instance:

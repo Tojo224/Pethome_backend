@@ -1,48 +1,83 @@
-from django.shortcuts import get_object_or_404
-from rest_framework import generics
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 
-from apps.GestionarClinicaVeterinaria.models import ConsultaClinica, Tratamiento
-from apps.GestionarClinicaVeterinaria.serializers import TratamientoSerializer
-
-
-class TratamientoListCreateView(generics.ListCreateAPIView):
-    serializer_class = TratamientoSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        id_consulta = self.kwargs["id_consulta_clinica"]
-        vet_id = getattr(self.request.user, "veterinaria_id", None)
-        return Tratamiento.objects.filter(
-            consulta_clinica_id=id_consulta,
-            consulta_clinica__veterinaria_id=vet_id,
-            estado=True,
-        ).select_related("consulta_clinica").order_by("-fecha_creacion")
-
-    def perform_create(self, serializer):
-        id_consulta = self.kwargs["id_consulta_clinica"]
-        vet_id = getattr(self.request.user, "veterinaria_id", None)
-        consulta = get_object_or_404(
-            ConsultaClinica,
-            pk=id_consulta,
-            veterinaria_id=vet_id,
-            estado=True,
-        )
-        serializer.save(consulta_clinica=consulta)
+from apps.AutenticacionySeguridad.mixins.tenant_mixins import TenantViewMixin
+from apps.AutenticacionySeguridad.permissions.tenant_rbac import HasComponentPermission
+from apps.AutenticacionySeguridad.events.bitacora_events import BitacoraModulo, BitacoraResultado, BitacoraAccion
+from ..selectors.clinica_selector import ConsultaClinicaSelector, TratamientoSelector
+from ..services.clinica_service import ClinicaService
+from ..serializers import TratamientoSerializer
 
 
-class TratamientoDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = TratamientoSerializer
-    permission_classes = [IsAuthenticated]
-    lookup_url_kwarg = "id_tratamiento"
+class TratamientoListCreateView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_TRATAMIENTOS"
 
-    def get_queryset(self):
-        vet_id = getattr(self.request.user, "veterinaria_id", None)
-        return Tratamiento.objects.filter(
-            estado=True,
-            consulta_clinica__veterinaria_id=vet_id,
-        ).select_related("consulta_clinica")
+    @extend_schema(
+        tags=["Clinica"],
+        responses={200: TratamientoSerializer(many=True)},
+        description="Lista los tratamientos asociados a una consulta clínica del tenant."
+    )
+    def get(self, request, id_consulta_clinica):
+        vet_id = self.get_tenant_id()
+        # Validar acceso a la consulta
+        consulta = ConsultaClinicaSelector.get_consulta_detail(id_consulta_clinica, vet_id)
+        if not consulta:
+            return Response({"error": "Consulta no encontrada o sin acceso."}, status=status.HTTP_404_NOT_FOUND)
 
-    def perform_destroy(self, instance):
-        instance.estado = False
-        instance.save(update_fields=["estado"])
+        tratamientos = TratamientoSelector.get_tratamientos_by_consulta(id_consulta_clinica, vet_id)
+        serializer = TratamientoSerializer(tratamientos, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        tags=["Clinica"],
+        request=TratamientoSerializer,
+        responses={201: TratamientoSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+        description="Registra un nuevo tratamiento para una consulta clínica."
+    )
+    def post(self, request, id_consulta_clinica):
+        vet_id = self.get_tenant_id()
+        # Validar acceso a la consulta
+        consulta = ConsultaClinicaSelector.get_consulta_detail(id_consulta_clinica, vet_id)
+        if not consulta:
+            return Response({"error": "Consulta no encontrada o sin acceso."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = TratamientoSerializer(data=request.data)
+        if serializer.is_valid():
+            tratamiento = ClinicaService.agregar_tratamiento(
+                consulta_id=id_consulta_clinica,
+                tipo=serializer.validated_data.get("tipo"),
+                descripcion=serializer.validated_data.get("descripcion"),
+                fecha_ini=serializer.validated_data.get("fecha_ini"),
+                fecha_fin=serializer.validated_data.get("fecha_fin"),
+                observacion=serializer.validated_data.get("observacion")
+            )
+            
+            self.registrar_bitacora(
+                accion=BitacoraAccion.TRATAMIENTO_REGISTRADO,
+                descripcion=f"Tratamiento registrado para la consulta #{id_consulta_clinica}.",
+                modulo=BitacoraModulo.CLINICA,
+                entidad_id=tratamiento.pk,
+                resultado=BitacoraResultado.EXITO
+            )
+            return Response(TratamientoSerializer(tratamiento).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TratamientoDetailView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_TRATAMIENTOS"
+
+    @extend_schema(tags=["Clinica"], responses={200: TratamientoSerializer})
+    def get(self, request, id_tratamiento):
+        vet_id = self.get_tenant_id()
+        tratamiento = TratamientoSelector.get_tratamientos_by_consulta(None, vet_id).filter(pk=id_tratamiento).first()
+        
+        if not tratamiento:
+            return Response({"error": "Tratamiento no encontrado o sin acceso."}, status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = TratamientoSerializer(tratamiento)
+        return Response(serializer.data)

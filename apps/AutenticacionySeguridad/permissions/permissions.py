@@ -109,6 +109,54 @@ class IsAdminOrClient(HasRolePermission):
     ]
     message = "Solo administradores o clientes pueden realizar esta acción."
 
+class HasComponentPermission(BasePermission):
+    """
+    Evalúa si un usuario tiene permiso sobre un componente específico del sistema.
+    La vista debe definir self.componente_codigo y opcionalmente self.accion_requerida.
+    """
+    message = "No tienes permisos sobre este recurso (PERMISO_DENEGADO)."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        if getattr(user, "is_superuser", False):
+            return True
+
+        componente_codigo = getattr(view, "componente_codigo", None)
+        accion_requerida = getattr(view, "accion_requerida", "puede_ver")
+
+        if not componente_codigo:
+            # Si la vista no define componente, permitimos por defecto o bloqueamos?
+            # En una app SaaS estricta lo ideal es bloquear.
+            return True
+
+        # Obtener los grupos del usuario actual
+        # User -> UsuarioGrupo(s) -> GrupoUsuario -> GrupoPermisoComponente
+        grupos_ids = user.grupos.filter(estado=True).values_list("grupo_id", flat=True)
+        if not grupos_ids:
+            _registrar_acceso_denegado_seguro(request, self.message, ["Grupos Asignados"])
+            return False
+
+        from ..models.grupo_permiso_componente import GrupoPermisoComponente
+
+        permiso = GrupoPermisoComponente.objects.filter(
+            grupo_id__in=grupos_ids,
+            componente__codigo=componente_codigo,
+            estado=True,
+            componente__estado=True
+        ).filter(**{accion_requerida: True}).exists()
+
+        if not permiso:
+            _registrar_acceso_denegado_seguro(
+                request,
+                f"Permiso denegado para {accion_requerida} en {componente_codigo} (PERMISO_DENEGADO)",
+                allowed_roles=["Permissions=" + accion_requerida]
+            )
+
+        return permiso
+
 """
 EQUIPO AVISO IMPORTANTE ESTO PARA CADA APP
 El permissions.py define las reglas de acceso a los endpoints.

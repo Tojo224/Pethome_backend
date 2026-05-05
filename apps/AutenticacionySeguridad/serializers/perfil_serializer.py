@@ -43,6 +43,10 @@ class PerfilCreateSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        veterinaria_id = getattr(tenant, "id", None)
+
         estado = validated_data.pop("estado", None)
         is_active = validated_data.pop("is_active", None)
         if estado is None:
@@ -56,6 +60,8 @@ class PerfilCreateSerializer(serializers.ModelSerializer):
             telefono=validated_data["telefono"],
             direccion=validated_data["direccion"],
             estado=estado,
+            veterinaria_id=veterinaria_id,
+            request_user=request.user if request else None,
         )
     
 

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from rest_framework import serializers
 
 from apps.GestionarClinicaVeterinaria.models import HistorialClinico
@@ -46,7 +48,7 @@ class HistorialClinicoSerializer(serializers.ModelSerializer):
             "consultas_clinicas",
         ]
 
-    def get_mascota_raza(self, obj):
+    def get_mascota_raza(self, obj) -> Optional[str]:
         if obj.mascota and obj.mascota.raza:
             return obj.mascota.raza.nombre
         return None

@@ -2,20 +2,23 @@ from django.urls import path
 
 from .views import (
     CategoriaServicioDetailView,
+    CategoriaServicioDetailLegacyView,
     CategoriaServicioListCreateView,
     CitaDetailView,
     CitaEstadoUpdateView,
     CitaListCreateView,
+    PrecioServicioDetailLegacyView,
     PrecioServicioDetailView,
     PrecioServicioListCreateView,
     ServicioDetailView,
     ServicioListCreateView,
 )
+from .views.agenda_view import DisponibilidadAgendaView, ValidarConflictoView
 
 urlpatterns = [
     # Categorias
     path("categorias-servicio/", CategoriaServicioListCreateView.as_view(), name="categoria-list-create"),
-    path("categorias-servicio/<int:pk>/", CategoriaServicioDetailView.as_view(), name="categoria-detail-legacy"),
+    path("categorias-servicio/<int:pk>/", CategoriaServicioDetailLegacyView.as_view(), name="categoria-detail-legacy"),
     path("categorias/<int:pk>/", CategoriaServicioDetailView.as_view(), name="categoria-detail"),
 
     # Servicios
@@ -24,11 +27,15 @@ urlpatterns = [
 
     # Precios
     path("precios-servicio/", PrecioServicioListCreateView.as_view(), name="precio-list-create"),
-    path("precios-servicio/<int:pk>/", PrecioServicioDetailView.as_view(), name="precio-detail-legacy"),
+    path("precios-servicio/<int:pk>/", PrecioServicioDetailLegacyView.as_view(), name="precio-detail-legacy"),
     path("precios/<int:pk>/", PrecioServicioDetailView.as_view(), name="precio-detail"),
 
     # Citas
     path("citas/", CitaListCreateView.as_view(), name="cita-list-create"),
     path("citas/<int:pk>/", CitaDetailView.as_view(), name="cita-detail"),
     path("citas/<int:pk>/estado/", CitaEstadoUpdateView.as_view(), name="cita-estado"),
+    
+    # Agenda y Disponibilidad
+    path("agenda/", DisponibilidadAgendaView.as_view(), name="agenda-disponibilidad"),
+    path("agenda/validar/", ValidarConflictoView.as_view(), name="agenda-validar"),
 ]

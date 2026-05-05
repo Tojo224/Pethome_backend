@@ -1,62 +1,86 @@
-from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 
-from apps.GestionarClinicaVeterinaria.models import ConsultaClinica, Receta
-from apps.GestionarClinicaVeterinaria.serializers import RecetaSerializer
+from apps.AutenticacionySeguridad.mixins.tenant_mixins import TenantViewMixin
+from apps.AutenticacionySeguridad.permissions.tenant_rbac import HasComponentPermission
+from apps.AutenticacionySeguridad.events.bitacora_events import BitacoraModulo, BitacoraResultado, BitacoraAccion
+from ..selectors.clinica_selector import ConsultaClinicaSelector, RecetaSelector
+from ..services.clinica_service import ClinicaService
+from ..serializers import RecetaSerializer
 
 
-class RecetaPorConsultaView(APIView):
-    permission_classes = [IsAuthenticated]
+class RecetaPorConsultaView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_RECETAS"
 
+    @extend_schema(
+        tags=["Clinica"],
+        responses={200: RecetaSerializer, 404: OpenApiResponse(description="No encontrado.")},
+        description="Obtiene la receta asociada a una consulta clínica."
+    )
     def get(self, request, id_consulta_clinica):
-        vet_id = getattr(request.user, "veterinaria_id", None)
-        receta = get_object_or_404(
-            Receta.objects.select_related("consulta_clinica").prefetch_related("detalles"),
-            consulta_clinica_id=id_consulta_clinica,
-            consulta_clinica__veterinaria_id=vet_id,
-            estado=True,
-        )
-        serializer = RecetaSerializer(receta, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        vet_id = self.get_tenant_id()
+        # Validar acceso a la consulta
+        consulta = ConsultaClinicaSelector.get_consulta_detail(id_consulta_clinica, vet_id)
+        if not consulta:
+            return Response({"error": "Consulta no encontrada o sin acceso."}, status=status.HTTP_404_NOT_FOUND)
 
+        receta = RecetaSelector.get_recetas_by_consulta(id_consulta_clinica, vet_id).first()
+        if not receta:
+             return Response({"error": "No hay receta para esta consulta."}, status=status.HTTP_404_NOT_FOUND)
+             
+        serializer = RecetaSerializer(receta, context={"request": request})
+        return Response(serializer.data)
+
+    @extend_schema(
+        tags=["Clinica"],
+        request=RecetaSerializer,
+        responses={201: RecetaSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+        description="Emite una receta para una consulta clínica."
+    )
     def post(self, request, id_consulta_clinica):
-        vet_id = getattr(request.user, "veterinaria_id", None)
-        consulta = get_object_or_404(
-            ConsultaClinica,
-            pk=id_consulta_clinica,
-            veterinaria_id=vet_id,
-            estado=True,
-        )
+        vet_id = self.get_tenant_id()
+        # Validar acceso a la consulta
+        consulta = ConsultaClinicaSelector.get_consulta_detail(id_consulta_clinica, vet_id)
+        if not consulta:
+            return Response({"error": "Consulta no encontrada o sin acceso."}, status=status.HTTP_404_NOT_FOUND)
 
         if hasattr(consulta, "receta"):
-            return Response(
-                {"detail": "La consulta clínica ya tiene una receta registrada."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"error": "La consulta ya tiene una receta."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = RecetaSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save(consulta_clinica=consulta)
+        if serializer.is_valid():
+            receta = ClinicaService.crear_receta(
+                consulta_id=id_consulta_clinica,
+                indicaciones=serializer.validated_data.get("indicaciones"),
+                observacion=serializer.validated_data.get("observacion")
+            )
+            
+            self.registrar_bitacora(
+                accion=BitacoraAccion.RECETA_REGISTRADA,
+                descripcion=f"Receta #{receta.pk} emitida para la consulta #{id_consulta_clinica}.",
+                modulo=BitacoraModulo.CLINICA,
+                entidad_id=receta.pk,
+                resultado=BitacoraResultado.EXITO
+            )
+            return Response(RecetaSerializer(receta).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+class RecetaDetailView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_RECETAS"
 
-class RecetaDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = RecetaSerializer
-    permission_classes = [IsAuthenticated]
-    lookup_url_kwarg = "id_receta"
-
-    def get_queryset(self):
-        vet_id = getattr(self.request.user, "veterinaria_id", None)
-        return Receta.objects.filter(
-            estado=True,
-            consulta_clinica__veterinaria_id=vet_id,
-        ).select_related("consulta_clinica").prefetch_related("detalles")
-
-    def perform_destroy(self, instance):
-        instance.estado = False
-        instance.save(update_fields=["estado"])
+    @extend_schema(tags=["Clinica"], responses={200: RecetaSerializer})
+    def get(self, request, id_receta):
+        vet_id = self.get_tenant_id()
+        receta = RecetaSelector.get_recetas_by_consulta(None, vet_id).filter(pk=id_receta).first()
+        
+        if not receta:
+            return Response({"error": "Receta no encontrada o sin acceso."}, status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = RecetaSerializer(receta)
+        return Response(serializer.data)

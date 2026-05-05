@@ -76,6 +76,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "pethome_back.middleware.tenant_context.TenantContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -171,8 +172,17 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "AUTH_HEADER_TYPES": ("Bearer", "bearer", "JWT", "jwt", "Token", "token"),
+    "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id_usuario",
     "USER_ID_CLAIM": "user_id",
 }
+
+# Bitacora encryption keys (primary first, optional fallback keys)
+BITACORA_SECRET_KEYS = [
+    key.strip()
+    for key in config("BITACORA_SECRET_KEYS", default="").split(",")
+    if key.strip()
+]
+if not BITACORA_SECRET_KEYS:
+    BITACORA_SECRET_KEY = config("BITACORA_SECRET_KEY", default="")

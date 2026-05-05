@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 
 from apps.AutenticacionySeguridad.models import Rol
 from apps.AutenticacionySeguridad.events.bitacora_events import (
@@ -27,6 +28,11 @@ def _registrar_bitacora_seguro(func, *args, **kwargs):
 class RegisterClienteView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        tags=["Clientes"],
+        request=PerfilCreateSerializer,
+        responses={201: PerfilSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+    )
     def post(self, request):
         data = request.data.copy()
 
@@ -48,7 +54,7 @@ class RegisterClienteView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        serializer = PerfilCreateSerializer(data=data)
+        serializer = PerfilCreateSerializer(data=data, context={"request": request})
         try:
             serializer.is_valid(raise_exception=True)
         except ValidationError:

@@ -59,6 +59,8 @@ class CitaSerializer(serializers.ModelSerializer):
     def validate(self, data):
         request = self.context.get("request")
         user = getattr(request, "user", None)
+        tenant = getattr(request, "tenant", None) if request else None
+        tenant_id = getattr(tenant, "id", None)
 
         mascota = data.get("mascota", getattr(self.instance, "mascota", None))
         servicio = data.get("servicio", getattr(self.instance, "servicio", None))
@@ -76,6 +78,28 @@ class CitaSerializer(serializers.ModelSerializer):
             getattr(self.instance, "fecha_programada", None),
         )
         hora_inicio = data.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
+
+        # ---------------- VALIDACIONES TENANT ----------------
+
+        if tenant_id is None:
+            raise serializers.ValidationError(
+                "No se pudo resolver el tenant activo."
+            )
+
+        if mascota and mascota.veterinaria_id != tenant_id:
+            raise serializers.ValidationError(
+                {"mascota": "La mascota no pertenece a la veterinaria actual."}
+            )
+
+        if servicio and servicio.veterinaria_id != tenant_id:
+            raise serializers.ValidationError(
+                {"servicio": "El servicio no pertenece a la veterinaria actual."}
+            )
+
+        if precio_servicio and precio_servicio.veterinaria_id != tenant_id:
+            raise serializers.ValidationError(
+                {"precio_servicio": "El precio no pertenece a la veterinaria actual."}
+            )
 
         # ---------------- VALIDACIONES EXISTENTES ----------------
 
@@ -187,6 +211,7 @@ class CitaSerializer(serializers.ModelSerializer):
             citas = Cita.objects.filter(
                 fecha_programada=fecha_programada,
                 modalidad=modalidad,
+                veterinaria_id=tenant_id,
                 estado__in=[
                     Cita.EstadoChoices.PENDIENTE,
                     Cita.EstadoChoices.CONFIRMADA,

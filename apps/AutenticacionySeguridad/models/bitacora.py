@@ -1,5 +1,7 @@
 from django.db import models
 
+from .encrypted_fields import EncryptedJSONField
+
 
 class Bitacora(models.Model):
     id_bitacora = models.AutoField(primary_key=True)
@@ -12,7 +14,7 @@ class Bitacora(models.Model):
         blank=True,
     )
     fecha_hora = models.DateTimeField(auto_now_add=True, db_column="fecha_hora")
-    payload = models.BinaryField()
+    payload = EncryptedJSONField()
 
     class Meta:
         db_table = "bitacora"

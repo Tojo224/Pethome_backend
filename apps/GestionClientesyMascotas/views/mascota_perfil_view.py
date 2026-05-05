@@ -3,8 +3,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers
 
-from apps.AutenticacionySeguridad.permissions.permissions import IsClientAdminOrVeterinario
+from apps.AutenticacionySeguridad.permissions.tenant_rbac import HasComponentPermission
 from apps.GestionClientesyMascotas.models.mascota import Mascota
 from apps.GestionClientesyMascotas.serializers.mascota_serializer import MascotaSerializer
 from apps.GestionarClinicaVeterinaria.models import HistorialClinico
@@ -12,8 +14,13 @@ from apps.GestionarClinicaVeterinaria.serializers.historial_clinico_serializer i
 
 
 class MascotaPerfilView(APIView):
-    permission_classes = [IsAuthenticated, IsClientAdminOrVeterinario]
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_MASCOTAS"
 
+    @extend_schema(
+        tags=["Mascotas"],
+        responses={200: MascotaSerializer, 404: OpenApiResponse(description="No encontrado.")},
+    )
     def get(self, request, id_mascota):
         queryset = Mascota.objects.select_related(
             "usuario",
@@ -21,6 +28,9 @@ class MascotaPerfilView(APIView):
             "especie",
             "raza",
         )
+
+        tenant = getattr(request, "tenant", None)
+        tenant_id = getattr(tenant, "id", None)
 
         user = request.user
         rol = user.role.nombre.upper()
@@ -30,11 +40,13 @@ class MascotaPerfilView(APIView):
                 queryset,
                 id_mascota=id_mascota,
                 usuario=user,
+                veterinaria_id=tenant_id,
             )
         else:
             mascota = get_object_or_404(
                 queryset,
                 id_mascota=id_mascota,
+                veterinaria_id=tenant_id,
             )
 
         mascota_data = MascotaSerializer(mascota, context={"request": request}).data
@@ -42,8 +54,19 @@ class MascotaPerfilView(APIView):
 
 
 class MascotaHistorialClinicoView(APIView):
-    permission_classes = [IsAuthenticated, IsClientAdminOrVeterinario]
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_MASCOTAS"
 
+    @extend_schema(
+        tags=["Mascotas"],
+        responses={
+            200: inline_serializer(
+                name="MascotaHistorialResponse",
+                fields={"historial_clinico": HistorialClinicoSerializer()},
+            ),
+            404: OpenApiResponse(description="No existe historial clínico."),
+        },
+    )
     def get(self, request, id_mascota):
         queryset = Mascota.objects.select_related(
             "usuario",
@@ -51,6 +74,9 @@ class MascotaHistorialClinicoView(APIView):
             "especie",
             "raza",
         )
+
+        tenant = getattr(request, "tenant", None)
+        tenant_id = getattr(tenant, "id", None)
 
         user = request.user
         rol = user.role.nombre.upper()
@@ -60,11 +86,13 @@ class MascotaHistorialClinicoView(APIView):
                 queryset,
                 id_mascota=id_mascota,
                 usuario=user,
+                veterinaria_id=tenant_id,
             )
         else:
             mascota = get_object_or_404(
                 queryset,
                 id_mascota=id_mascota,
+                veterinaria_id=tenant_id,
             )
 
         historial = HistorialClinico.objects.filter(
@@ -103,16 +131,29 @@ class MascotaHistorialClinicoView(APIView):
 
 
 class MascotasMeView(APIView):
-    permission_classes = [IsAuthenticated, IsClientAdminOrVeterinario]
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_MASCOTAS"
 
+    @extend_schema(
+        tags=["Mascotas"],
+        responses={
+            200: inline_serializer(
+                name="MascotasMeResponse",
+                fields={"mascotas": MascotaSerializer(many=True)},
+            )
+        },
+    )
     def get(self, request):
+        tenant = getattr(request, "tenant", None)
+        tenant_id = getattr(tenant, "id", None)
         mascotas = Mascota.objects.select_related(
             "usuario",
             "usuario__perfil",
             "especie",
             "raza",
         ).filter(
-            usuario=request.user
+            usuario=request.user,
+            veterinaria_id=tenant_id,
         ).order_by("-fecha_registro")
 
         mascotas_data = MascotaSerializer(

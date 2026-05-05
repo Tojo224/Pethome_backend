@@ -1,5 +1,7 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from apps.AutenticacionySeguridad.permissions.tenant_rbac import HasComponentPermission
 from apps.AutenticacionySeguridad.events.bitacora_events import BitacoraAccion, BitacoraModulo, BitacoraResultado
 from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
 from apps.GestionClientesyMascotas.models.raza import Raza
@@ -15,8 +17,16 @@ def _registrar_bitacora_seguro(func, *args, **kwargs):
 
 class RazaListView(generics.ListAPIView):
     serializer_class = RazaSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_CATALOGOS"
 
+    @extend_schema(
+        tags=["Catalogos"],
+        parameters=[
+            OpenApiParameter("especie_id", OpenApiTypes.INT, required=False),
+        ],
+        responses={200: RazaSerializer},
+    )
     def get(self, request, *args, **kwargs):
         _registrar_bitacora_seguro(
             BitacoraService.registrar_evento,

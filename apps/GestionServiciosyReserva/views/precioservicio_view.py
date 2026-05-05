@@ -1,207 +1,160 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 
 from apps.AutenticacionySeguridad.events.bitacora_events import (
     BitacoraAccion,
     BitacoraModulo,
     BitacoraResultado,
 )
-from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
-
-from ..models import PrecioServicio
+from apps.AutenticacionySeguridad.mixins.tenant_mixins import TenantViewMixin
+from apps.AutenticacionySeguridad.permissions.tenant_rbac import HasComponentPermission
+from ..selectors.servicios_selector import PrecioServicioSelector
 from ..serializers.precioservicio_serializer import PrecioServicioSerializer
 
 
-def _registrar_bitacora_seguro(func, *args, **kwargs):
-    try:
-        func(*args, **kwargs)
-    except Exception:
-        pass
 
 
-class PrecioServicioListCreateView(APIView):
-    def _vet_id(self, request):
-        return getattr(request.user, "veterinaria_id", None)
 
+class PrecioServicioListCreateView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "SERV_PRECIOS"
+
+    @extend_schema(
+        tags=["Servicios"],
+        operation_id="gestion_servicios_precios_list",
+        responses={200: PrecioServicioSerializer},
+    )
     def get(self, request):
-        precios = PrecioServicio.objects.filter(veterinaria_id=self._vet_id(request))
+        precios = PrecioServicioSelector.get_precios_by_tenant(self.get_tenant_id())
         serializer = PrecioServicioSerializer(precios, many=True)
 
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.VISUALIZAR,
+        self.registrar_bitacora(
+            accion=BitacoraAccion.PRECIO_SERVICIO_CONSULTADO,
             descripcion="Listado de precios de servicio consultado.",
-            usuario=request.user,
-            request=request,
             modulo=BitacoraModulo.PRECIOS,
-            entidad_tipo="PrecioServicio",
             resultado=BitacoraResultado.EXITO,
             metadatos={"total": precios.count()},
         )
 
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=["Servicios"],
+        request=PrecioServicioSerializer,
+        responses={201: PrecioServicioSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+    )
     def post(self, request):
-        serializer = PrecioServicioSerializer(data=request.data)
-        if serializer.is_valid():
-            precio = serializer.save(veterinaria_id=self._vet_id(request))
+        serializer = PrecioServicioSerializer(data=request.data, context={"request": request})
+        try:
+            serializer.is_valid(raise_exception=True)
+            precio = serializer.save(veterinaria_id=self.get_tenant_id())
 
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.CREAR,
-                descripcion="Precio de servicio creado.",
-                usuario=request.user,
-                request=request,
+            self.registrar_bitacora(
+                accion=BitacoraAccion.PRECIO_SERVICIO_CREADO,
+                descripcion=f"Precio para el servicio ID {precio.servicio_id} creado.",
                 modulo=BitacoraModulo.PRECIOS,
-                entidad_tipo="PrecioServicio",
-                entidad_id=getattr(precio, "id_precio", ""),
+                entidad_id=precio.id_precio,
                 resultado=BitacoraResultado.EXITO,
-                metadatos={"servicio_id": getattr(precio, "servicio_id", None)},
+                metadatos={"servicio_id": precio.servicio_id},
             )
-
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.CREAR,
-            descripcion="Falló la creación de precio de servicio.",
-            usuario=request.user,
-            request=request,
-            modulo=BitacoraModulo.PRECIOS,
-            entidad_tipo="PrecioServicio",
-            resultado=BitacoraResultado.FALLO,
-            metadatos={"errores": serializer.errors},
-        )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            self.registrar_bitacora(
+                accion=BitacoraAccion.CREAR,
+                descripcion="Falló la creación de precio de servicio.",
+                modulo=BitacoraModulo.PRECIOS,
+                resultado=BitacoraResultado.FALLO,
+                metadatos={"errores": e.detail},
+            )
+            raise
 
 
-class PrecioServicioDetailView(APIView):
-    def _vet_id(self, request):
-        return getattr(request.user, "veterinaria_id", None)
+class PrecioServicioDetailView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "SERV_PRECIOS"
 
     def get_object(self, request, pk):
+        from ..models import PrecioServicio
         try:
-            return PrecioServicio.objects.get(pk=pk, veterinaria_id=self._vet_id(request))
+            return PrecioServicio.objects.get(pk=pk, veterinaria_id=self.get_tenant_id())
         except PrecioServicio.DoesNotExist:
             return None
 
+    @extend_schema(
+        tags=["Servicios"],
+        operation_id="gestion_servicios_precios_retrieve",
+        responses={200: PrecioServicioSerializer, 404: OpenApiResponse(description="No encontrado.")},
+    )
     def get(self, request, pk):
         precio = self.get_object(request, pk)
         if not precio:
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.VISUALIZAR,
-                descripcion="Falló la consulta de precio: no encontrado.",
-                usuario=request.user,
-                request=request,
-                modulo=BitacoraModulo.PRECIOS,
-                entidad_tipo="PrecioServicio",
-                entidad_id=pk,
-                resultado=BitacoraResultado.FALLO,
-            )
-            return Response(
-                {"error": "Precio no encontrado"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = PrecioServicioSerializer(precio)
+            return Response({"error": "Precio no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.VISUALIZAR,
+        serializer = PrecioServicioSerializer(precio)
+        self.registrar_bitacora(
+            accion="PRECIO_SERVICIO_CONSULTADO",
             descripcion="Detalle de precio de servicio consultado.",
-            usuario=request.user,
-            request=request,
             modulo=BitacoraModulo.PRECIOS,
-            entidad_tipo="PrecioServicio",
-            entidad_id=getattr(precio, "id_precio", pk),
+            entidad_id=pk,
             resultado=BitacoraResultado.EXITO,
         )
-
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=["Servicios"],
+        request=PrecioServicioSerializer,
+        responses={200: PrecioServicioSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+    )
     def put(self, request, pk):
         precio = self.get_object(request, pk)
         if not precio:
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.ACTUALIZAR,
-                descripcion="Falló la actualización de precio: no encontrado.",
-                usuario=request.user,
-                request=request,
-                modulo=BitacoraModulo.PRECIOS,
-                entidad_tipo="PrecioServicio",
-                entidad_id=pk,
-                resultado=BitacoraResultado.FALLO,
-            )
-            return Response(
-                {"error": "Precio no encontrado"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = PrecioServicioSerializer(precio, data=request.data)
-        if serializer.is_valid():
-            serializer.save(veterinaria_id=self._vet_id(request))
+            return Response({"error": "Precio no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.ACTUALIZAR,
-                descripcion="Precio de servicio actualizado.",
-                usuario=request.user,
-                request=request,
+        serializer = PrecioServicioSerializer(precio, data=request.data, context={"request": request})
+        try:
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+            self.registrar_bitacora(
+                accion=BitacoraAccion.PRECIO_SERVICIO_EDITADO,
+                descripcion=f"Precio ID {pk} actualizado.",
                 modulo=BitacoraModulo.PRECIOS,
-                entidad_tipo="PrecioServicio",
-                entidad_id=getattr(precio, "id_precio", pk),
+                entidad_id=pk,
                 resultado=BitacoraResultado.EXITO,
             )
-
             return Response(serializer.data)
+        except ValidationError as e:
+            self.registrar_bitacora(
+                accion=BitacoraAccion.ACTUALIZAR,
+                descripcion="Falló la actualización de precio por validación.",
+                modulo=BitacoraModulo.PRECIOS,
+                entidad_id=pk,
+                resultado=BitacoraResultado.FALLO,
+                metadatos={"errores": e.detail},
+            )
+            raise
 
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.ACTUALIZAR,
-            descripcion="Falló la actualización de precio por validación.",
-            usuario=request.user,
-            request=request,
-            modulo=BitacoraModulo.PRECIOS,
-            entidad_tipo="PrecioServicio",
-            entidad_id=getattr(precio, "id_precio", pk),
-            resultado=BitacoraResultado.FALLO,
-            metadatos={"errores": serializer.errors},
-        )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    @extend_schema(
+        tags=["Servicios"],
+        responses={200: OpenApiResponse(description="Estado actualizado.")},
+    )
     def delete(self, request, pk):
         precio = self.get_object(request, pk)
         if not precio:
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.DESACTIVAR,
-                descripcion="Falló el cambio de estado de precio: no encontrado.",
-                usuario=request.user,
-                request=request,
-                modulo=BitacoraModulo.PRECIOS,
-                entidad_tipo="PrecioServicio",
-                entidad_id=pk,
-                resultado=BitacoraResultado.FALLO,
-            )
-            return Response(
-                {"error": "Precio no encontrado"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Precio no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
         precio.estado = not precio.estado
         precio.save()
 
-        accion = BitacoraAccion.ACTIVAR if precio.estado else BitacoraAccion.DESACTIVAR
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
+        accion = "PRECIO_SERVICIO_ACTIVADO" if precio.estado else "PRECIO_SERVICIO_DESACTIVADO"
+        self.registrar_bitacora(
             accion=accion,
-            descripcion="Estado del precio de servicio actualizado.",
-            usuario=request.user,
-            request=request,
+            descripcion=f"Estado del precio ID {pk} actualizado.",
             modulo=BitacoraModulo.PRECIOS,
-            entidad_tipo="PrecioServicio",
-            entidad_id=getattr(precio, "id_precio", pk),
+            entidad_id=pk,
             resultado=BitacoraResultado.EXITO,
             metadatos={"estado": precio.estado},
         )
@@ -210,3 +163,12 @@ class PrecioServicioDetailView(APIView):
             "message": "Estado del precio actualizado correctamente",
             "estado": precio.estado
         }, status=status.HTTP_200_OK)
+
+
+@extend_schema_view(
+    get=extend_schema(operation_id="gestion_servicios_precios_retrieve_legacy"),
+    put=extend_schema(operation_id="gestion_servicios_precios_update_legacy"),
+    delete=extend_schema(operation_id="gestion_servicios_precios_delete_legacy"),
+)
+class PrecioServicioDetailLegacyView(PrecioServicioDetailView):
+    pass

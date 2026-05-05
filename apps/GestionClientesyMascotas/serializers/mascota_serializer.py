@@ -13,7 +13,7 @@ class UsuarioMiniSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id_usuario", "correo", "nombre"]
 
-    def get_nombre(self, obj):
+    def get_nombre(self, obj) -> str:
         if hasattr(obj, "perfil") and obj.perfil:
             return obj.perfil.nombre
         return obj.correo
@@ -88,6 +88,20 @@ class MascotaSerializer(serializers.ModelSerializer):
             "raza_id",
         ]
         read_only_fields = ["id_mascota", "fecha_registro"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        tenant_id = getattr(tenant, "id", None)
+        if tenant_id is not None:
+            self.fields["usuario_id"].queryset = (
+                User.objects.filter(
+                    role__nombre=RoleEnum.CLIENT.value,
+                    is_active=True,
+                    veterinaria_id=tenant_id,
+                ).select_related("perfil")
+            )
 
     def validate(self, attrs):
         request = self.context.get("request")

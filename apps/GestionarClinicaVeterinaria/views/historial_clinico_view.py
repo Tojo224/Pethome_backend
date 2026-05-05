@@ -1,67 +1,85 @@
-from django.shortcuts import get_object_or_404
-from rest_framework import generics
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 
-from apps.GestionarClinicaVeterinaria.models import HistorialClinico
-from apps.GestionarClinicaVeterinaria.serializers.historial_clinico_serializer import (
-    HistorialClinicoSerializer,
-)
+from apps.AutenticacionySeguridad.mixins.tenant_mixins import TenantViewMixin
+from apps.AutenticacionySeguridad.permissions.tenant_rbac import HasComponentPermission
+from apps.AutenticacionySeguridad.events.bitacora_events import BitacoraModulo, BitacoraResultado, BitacoraAccion
+from apps.GestionClientesyMascotas.selectors.mascota_selector import MascotaSelector
+from ..selectors.clinica_selector import HistorialClinicoSelector
+from ..serializers.historial_clinico_serializer import HistorialClinicoSerializer
+from ..models.historial_clinico import HistorialClinico
 
+class HistorialClinicoListCreateView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_HISTORIALES"
 
-class HistorialClinicoListCreateView(generics.ListCreateAPIView):
-    serializer_class = HistorialClinicoSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        vet_id = getattr(self.request.user, "veterinaria_id", None)
-        return (
-            HistorialClinico.objects.filter(
-                estado=True,
-                mascota__veterinaria_id=vet_id,
-            )
-            .select_related(
-                "mascota",
-                "mascota__usuario",
-                "mascota__usuario__perfil",
-                "mascota__especie",
-                "mascota__raza",
-            )
-            .prefetch_related(
-                "consultas_clinicas",
-                "consultas_clinicas__tratamientos",
-                "consultas_clinicas__vacunas_aplicadas",
-                "consultas_clinicas__archivos_clinicos",
-                "consultas_clinicas__receta",
-                "consultas_clinicas__receta__detalles",
-            )
-            .order_by("-fecha_actualizacion", "-id_historial_clinico")
+    @extend_schema(
+        tags=["Clinica"], 
+        responses={200: HistorialClinicoSerializer(many=True)},
+        description="Lista todos los historiales clínicos de la veterinaria actual."
+    )
+    def get(self, request):
+        vet_id = self.get_tenant_id()
+        historiales = HistorialClinicoSelector.get_historiales_by_tenant(vet_id)
+        serializer = HistorialClinicoSerializer(historiales, many=True)
+        
+        self.registrar_bitacora(
+            accion=BitacoraAccion.HISTORIAL_CLINICO_CONSULTADO,
+            descripcion="Listado de historiales clínicos consultado.",
+            modulo=BitacoraModulo.CLINICA,
+            resultado=BitacoraResultado.EXITO,
+            metadatos={"total": historiales.count()}
         )
+        return Response(serializer.data)
 
+class HistorialClinicoPorMascotaView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "CLI_HISTORIALES"
 
-class HistorialClinicoPorMascotaView(generics.RetrieveAPIView):
-    serializer_class = HistorialClinicoSerializer
-    permission_classes = [IsAuthenticated]
+    @extend_schema(
+        tags=["Clinica"], 
+        responses={200: HistorialClinicoSerializer, 404: OpenApiResponse(description="No encontrado.")},
+        description="Obtiene o crea el historial clínico de una mascota específica, validando el tenant."
+    )
+    def get(self, request, id_mascota):
+        vet_id = self.get_tenant_id()
+        
+        # Validar que la mascota pertenece al tenant y al cliente (si aplica)
+        mascota = MascotaSelector.get_mascota_detail(id_mascota, vet_id, user=request.user)
+        if not mascota:
+            self.registrar_bitacora(
+                accion=BitacoraAccion.ACCESO_DENEGADO,
+                descripcion=f"Intento de acceso a mascota ID {id_mascota} de otro tenant o propietario.",
+                modulo=BitacoraModulo.CLINICA,
+                resultado=BitacoraResultado.FALLO
+            )
+            return Response({"error": "Mascota no encontrada en su veterinaria."}, status=status.HTTP_404_NOT_FOUND)
 
-    def get_object(self):
-        id_mascota = self.kwargs["id_mascota"]
-        vet_id = getattr(self.request.user, "veterinaria_id", None)
-
-        return get_object_or_404(
-            HistorialClinico.objects.select_related(
-                "mascota",
-                "mascota__usuario",
-                "mascota__usuario__perfil",
-                "mascota__especie",
-                "mascota__raza",
-            ).prefetch_related(
-                "consultas_clinicas",
-                "consultas_clinicas__tratamientos",
-                "consultas_clinicas__vacunas_aplicadas",
-                "consultas_clinicas__archivos_clinicos",
-                "consultas_clinicas__receta",
-                "consultas_clinicas__receta__detalles",
-            ),
-            mascota_id=id_mascota,
-            mascota__veterinaria_id=vet_id,
-            estado=True,
+        # Buscar o crear historial (Regla SaaS: una mascota = un historial)
+        historial, creado = HistorialClinico.objects.get_or_create(
+            mascota=mascota,
+            defaults={"estado": True}
         )
+        
+        if creado:
+            self.registrar_bitacora(
+                accion=BitacoraAccion.CREAR,
+                descripcion=f"Historial clínico creado para la mascota '{mascota.nombre}'.",
+                modulo=BitacoraModulo.CLINICA,
+                entidad_id=historial.pk,
+                resultado=BitacoraResultado.EXITO
+            )
+
+        serializer = HistorialClinicoSerializer(historial)
+        
+        self.registrar_bitacora(
+            accion=BitacoraAccion.HISTORIAL_CLINICO_CONSULTADO,
+            descripcion=f"Historial clínico de '{mascota.nombre}' consultado.",
+            modulo=BitacoraModulo.CLINICA,
+            entidad_id=historial.pk,
+            resultado=BitacoraResultado.EXITO
+        )
+        return Response(serializer.data)

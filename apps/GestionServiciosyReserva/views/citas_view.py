@@ -1,6 +1,7 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 
 from apps.AutenticacionySeguridad.enums.roles import RoleEnum
 from apps.AutenticacionySeguridad.events.bitacora_events import (
@@ -8,132 +9,115 @@ from apps.AutenticacionySeguridad.events.bitacora_events import (
     BitacoraModulo,
     BitacoraResultado,
 )
-from apps.AutenticacionySeguridad.permissions.permissions import IsAdminOrClient, IsClientRole
-from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
+from rest_framework.permissions import IsAuthenticated
 
-from ..models import Cita
+from apps.AutenticacionySeguridad.mixins.tenant_mixins import TenantViewMixin
+from apps.AutenticacionySeguridad.permissions.tenant_rbac import HasComponentPermission
+from ..selectors.servicios_selector import CitaSelector
+from ..services.citas_service import CitaService
 from ..serializers.citas_serializer import (
     CitaEstadoUpdateSerializer,
     CitaSerializer,
 )
 
 
-def _registrar_bitacora_seguro(func, *args, **kwargs):
-    try:
-        func(*args, **kwargs)
-    except Exception:
-        pass
 
 
-class CitaListCreateView(APIView):
-    permission_classes = [IsAdminOrClient]
 
-    def get_permissions(self):
-        if self.request.method == "POST":
-            return [IsClientRole()]
-        return super().get_permissions()
+class CitaListCreateView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "SERV_CITAS"
 
     def get_queryset(self, request):
-        queryset = (
-            Cita.objects.select_related(
-                "usuario",
-                "mascota",
-                "servicio",
-                "precio_servicio",
-            )
-            .filter(veterinaria_id=getattr(request.user, "veterinaria_id", None))
-            .order_by("-id_cita")
-        )
+        return CitaSelector.get_citas_by_tenant(
+            veterinaria_id=self.get_tenant_id(),
+            user=request.user
+        ).order_by("-id_cita")
 
-        if request.user.role.nombre == RoleEnum.CLIENT.value:
-            queryset = queryset.filter(usuario=request.user)
-
-        return queryset
-
+    @extend_schema(
+        tags=["Citas"],
+        operation_id="gestion_servicios_citas_list",
+        responses={200: CitaSerializer},
+    )
     def get(self, request):
         citas = self.get_queryset(request)
         serializer = CitaSerializer(citas, many=True)
 
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.VISUALIZAR,
+        self.registrar_bitacora(
+            accion=BitacoraAccion.CITA_CONSULTADA,
             descripcion="Listado de citas consultado.",
-            usuario=request.user,
-            request=request,
             modulo=BitacoraModulo.CITAS,
-            entidad_tipo="Cita",
-            resultado=BitacoraResultado.EXITO,
             metadatos={"total": citas.count()},
         )
 
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=["Citas"],
+        request=CitaSerializer,
+        responses={201: CitaSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+    )
     def post(self, request):
         serializer = CitaSerializer(data=request.data, context={"request": request})
-        if serializer.is_valid():
-            cita = serializer.save(veterinaria_id=getattr(request.user, "veterinaria_id", None))
+        try:
+            serializer.is_valid(raise_exception=True)
+            cita = CitaService.crear_cita(
+                veterinaria_id=self.get_tenant_id(),
+                usuario_id=request.user.id_usuario,
+                mascota_id=serializer.validated_data.get("mascota").pk,
+                servicio_id=serializer.validated_data.get("servicio").pk,
+                precio_servicio_id=serializer.validated_data.get("precio_servicio").pk,
+                fecha_programada=serializer.validated_data.get("fecha_programada"),
+                hora_inicio=serializer.validated_data.get("hora_inicio"),
+                hora_fin=serializer.validated_data.get("hora_fin"),
+                modalidad=serializer.validated_data.get("modalidad"),
+                direccion_cita=serializer.validated_data.get("direccion_cita"),
+                descripcion=serializer.validated_data.get("descripcion"),
+            )
 
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.CREAR,
-                descripcion="Cita creada.",
-                usuario=request.user,
-                request=request,
-                modulo=BitacoraModulo.CITAS,
-                entidad_tipo="Cita",
-                entidad_id=getattr(cita, "id_cita", ""),
+            self.registrar_bitacora(
+                accion=BitacoraAccion.CITA_AGENDADA_DESDE_AGENDA,
+                descripcion=f"Cita #{cita.id_cita} agendada correctamente desde el módulo de agenda.",
+                modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
+                entidad_id=cita.id_cita,
                 resultado=BitacoraResultado.EXITO,
                 metadatos={
-                    "mascota_id": getattr(cita, "mascota_id", None),
-                    "servicio_id": getattr(cita, "servicio_id", None),
-                    "modalidad": getattr(cita, "modalidad", None),
+                    "mascota_id": cita.mascota_id,
+                    "servicio_id": cita.servicio_id,
                 },
             )
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(CitaSerializer(cita).data, status=status.HTTP_201_CREATED)
 
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.CREAR,
-            descripcion="Falló la creación de cita.",
-            usuario=request.user,
-            request=request,
-            modulo=BitacoraModulo.CITAS,
-            entidad_tipo="Cita",
-            resultado=BitacoraResultado.FALLO,
-            metadatos={"errores": serializer.errors},
-        )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            self.registrar_bitacora(
+                accion=BitacoraAccion.CITA_SOLICITUD_FALLIDA,
+                descripcion="Falló la solicitud de cita por errores de validación.",
+                modulo=BitacoraModulo.CITAS,
+                resultado=BitacoraResultado.FALLO,
+                metadatos={"errores": e.detail},
+            )
+            raise
 
 
-class CitaDetailView(APIView):
-    permission_classes = [IsAdminOrClient]
+class CitaDetailView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "SERV_CITAS"
 
     def get_object(self, request, pk):
-        try:
-            cita = Cita.objects.select_related(
-                "usuario",
-                "mascota",
-                "servicio",
-                "precio_servicio",
-            ).get(pk=pk, veterinaria_id=getattr(request.user, "veterinaria_id", None))
-        except Cita.DoesNotExist:
-            return None
+        return CitaSelector.get_cita_detail(pk, self.get_tenant_id())
 
-        if request.user.role.nombre == RoleEnum.CLIENT.value and cita.usuario_id != request.user.id_usuario:
-            return None
-
-        return cita
-
+    @extend_schema(
+        tags=["Citas"],
+        operation_id="gestion_servicios_citas_retrieve",
+        responses={200: CitaSerializer, 404: OpenApiResponse(description="No encontrado.")},
+    )
     def get(self, request, pk):
         cita = self.get_object(request, pk)
         if not cita:
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.VISUALIZAR,
+            self.registrar_bitacora(
+                accion=BitacoraAccion.RESERVA_CONSULTADA,
                 descripcion="Falló la consulta de cita: no encontrada o sin acceso.",
-                usuario=request.user,
-                request=request,
                 modulo=BitacoraModulo.CITAS,
                 entidad_tipo="Cita",
                 entidad_id=pk,
@@ -145,12 +129,9 @@ class CitaDetailView(APIView):
             )
         serializer = CitaSerializer(cita)
 
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.VISUALIZAR,
-            descripcion="Detalle de cita consultado.",
-            usuario=request.user,
-            request=request,
+        self.registrar_bitacora(
+            accion=BitacoraAccion.RESERVA_CONSULTADA,
+            descripcion=f"Consulta al detalle de la reserva #{pk}.",
             modulo=BitacoraModulo.CITAS,
             entidad_tipo="Cita",
             entidad_id=getattr(cita, "id_cita", pk),
@@ -159,93 +140,58 @@ class CitaDetailView(APIView):
 
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=["Citas"],
+        request=CitaSerializer,
+        responses={200: CitaSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+    )
     def put(self, request, pk):
         cita = self.get_object(request, pk)
         if not cita:
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.ACTUALIZAR,
-                descripcion="Falló la actualización de cita: no encontrada o sin acceso.",
-                usuario=request.user,
-                request=request,
-                modulo=BitacoraModulo.CITAS,
-                entidad_tipo="Cita",
-                entidad_id=pk,
-                resultado=BitacoraResultado.FALLO,
-            )
-            return Response(
-                {"error": "Cita no encontrada"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"error": "Cita no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = CitaSerializer(cita, data=request.data, context={"request": request})
-        if serializer.is_valid():
+        try:
+            serializer.is_valid(raise_exception=True)
             serializer.save()
 
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.ACTUALIZAR,
-                descripcion="Cita actualizada.",
-                usuario=request.user,
-                request=request,
+            self.registrar_bitacora(
+                accion=BitacoraAccion.RESERVA_MODIFICADA,
+                descripcion=f"Reserva #{pk} modificada manualmente.",
                 modulo=BitacoraModulo.CITAS,
-                entidad_tipo="Cita",
-                entidad_id=getattr(cita, "id_cita", pk),
+                entidad_id=pk,
                 resultado=BitacoraResultado.EXITO,
             )
-
             return Response(serializer.data)
+        except ValidationError as e:
+            self.registrar_bitacora(
+                accion=BitacoraAccion.ACTUALIZAR,
+                descripcion="Falló la actualización de cita por validación.",
+                modulo=BitacoraModulo.CITAS,
+                entidad_id=pk,
+                resultado=BitacoraResultado.FALLO,
+                metadatos={"errores": e.detail},
+            )
+            raise
 
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.ACTUALIZAR,
-            descripcion="Falló la actualización de cita por validación.",
-            usuario=request.user,
-            request=request,
-            modulo=BitacoraModulo.CITAS,
-            entidad_tipo="Cita",
-            entidad_id=getattr(cita, "id_cita", pk),
-            resultado=BitacoraResultado.FALLO,
-            metadatos={"errores": serializer.errors},
-        )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    @extend_schema(
+        tags=["Citas"],
+        responses={200: OpenApiResponse(description="Estado actualizado.")},
+    )
     def delete(self, request, pk):
         cita = self.get_object(request, pk)
         if not cita:
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.DESACTIVAR,
-                descripcion="Falló el cambio de estado de cita: no encontrada o sin acceso.",
-                usuario=request.user,
-                request=request,
-                modulo=BitacoraModulo.CITAS,
-                entidad_tipo="Cita",
-                entidad_id=pk,
-                resultado=BitacoraResultado.FALLO,
-            )
-            return Response(
-                {"error": "Cita no encontrada"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"error": "Cita no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-        cita.estado = (
-            Cita.EstadoChoices.PENDIENTE
-            if cita.estado == Cita.EstadoChoices.CANCELADA
-            else Cita.EstadoChoices.CANCELADA
-        )
-        cita.save(update_fields=["estado"])
+        nuevo_estado = "CANCELADA" if cita.estado != "CANCELADA" else "PENDIENTE"
+        CitaService.actualizar_estado(cita, nuevo_estado)
 
-        accion = BitacoraAccion.ACTIVAR if cita.estado == Cita.EstadoChoices.PENDIENTE else BitacoraAccion.DESACTIVAR
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
+        accion = BitacoraAccion.RESERVA_ACTIVADA if cita.estado == "PENDIENTE" else BitacoraAccion.RESERVA_CANCELADA
+        self.registrar_bitacora(
             accion=accion,
-            descripcion="Estado de cita actualizado.",
-            usuario=request.user,
-            request=request,
+            descripcion=f"La reserva #{pk} ha sido {'reactivada' if cita.estado == 'PENDIENTE' else 'cancelada'}.",
             modulo=BitacoraModulo.CITAS,
-            entidad_tipo="Cita",
-            entidad_id=getattr(cita, "id_cita", pk),
+            entidad_id=pk,
             resultado=BitacoraResultado.EXITO,
             metadatos={"estado": cita.estado},
         )
@@ -259,68 +205,57 @@ class CitaDetailView(APIView):
         )
 
 
-class CitaEstadoUpdateView(APIView):
-    permission_classes = [IsAdminOrClient]
+class CitaEstadoUpdateView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "SERV_CITAS"
 
     def get_object(self, request, pk):
-        try:
-            cita = Cita.objects.get(pk=pk, veterinaria_id=getattr(request.user, "veterinaria_id", None))
-        except Cita.DoesNotExist:
-            return None
+        return CitaSelector.get_cita_detail(pk, self.get_tenant_id())
 
-        if request.user.role.nombre == RoleEnum.CLIENT.value and cita.usuario_id != request.user.id_usuario:
-            return None
-
-        return cita
-
+    @extend_schema(
+        tags=["Citas"],
+        request=CitaEstadoUpdateSerializer,
+        responses={200: CitaSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+    )
     def patch(self, request, pk):
         cita = self.get_object(request, pk)
         if not cita:
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.ACTUALIZAR,
-                descripcion="Falló la actualización de estado de cita: no encontrada o sin acceso.",
-                usuario=request.user,
-                request=request,
-                modulo=BitacoraModulo.CITAS,
-                entidad_tipo="Cita",
-                entidad_id=pk,
-                resultado=BitacoraResultado.FALLO,
-            )
-            return Response(
-                {"error": "Cita no encontrada"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"error": "Cita no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = CitaEstadoUpdateSerializer(cita, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
+        try:
+            serializer.is_valid(raise_exception=True)
+            
+            # Reprogramación si vienen datos de tiempo
+            if "fecha_programada" in serializer.validated_data or "hora_inicio" in serializer.validated_data:
+                CitaService.reprogramar_cita(
+                    cita, 
+                    serializer.validated_data.get("fecha_programada", cita.fecha_programada),
+                    serializer.validated_data.get("hora_inicio", cita.hora_inicio),
+                    serializer.validated_data.get("hora_fin", cita.hora_fin)
+                )
+            
+            # Cambio de estado si viene
+            if "estado" in serializer.validated_data:
+                CitaService.actualizar_estado(cita, serializer.validated_data.get("estado"))
 
-            _registrar_bitacora_seguro(
-                BitacoraService.registrar_evento,
-                accion=BitacoraAccion.ACTUALIZAR,
-                descripcion="Estado de cita actualizado por endpoint específico.",
-                usuario=request.user,
-                request=request,
+            # Bitácora específica si es confirmación
+                accion_confirmar = BitacoraAccion.CITA_CONFIRMADA_DESDE_AGENDA if serializer.validated_data.get("estado") == "CONFIRMADA" else BitacoraAccion.RESERVA_MODIFICADA
+                self.registrar_bitacora(
+                    accion=accion_confirmar,
+                    descripcion=f"Reserva #{pk} actualizada/confirmada desde la agenda.",
+                    modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
+                    entidad_id=pk,
+                    resultado=BitacoraResultado.EXITO,
+                )
+            return Response(CitaSerializer(cita).data)
+        except ValidationError as e:
+            self.registrar_bitacora(
+                accion=BitacoraAccion.RESERVA_MODIFICACION_FALLIDA,
+                descripcion="Falló la actualización de reserva.",
                 modulo=BitacoraModulo.CITAS,
-                entidad_tipo="Cita",
-                entidad_id=getattr(cita, "id_cita", pk),
-                resultado=BitacoraResultado.EXITO,
-                metadatos={"estado": getattr(cita, "estado", None)},
+                entidad_id=pk,
+                resultado=BitacoraResultado.FALLO,
+                metadatos={"errores": e.detail},
             )
-
-            return Response(CitaSerializer(cita).data, status=status.HTTP_200_OK)
-
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
-            accion=BitacoraAccion.ACTUALIZAR,
-            descripcion="Falló la actualización de estado de cita por validación.",
-            usuario=request.user,
-            request=request,
-            modulo=BitacoraModulo.CITAS,
-            entidad_tipo="Cita",
-            entidad_id=getattr(cita, "id_cita", pk),
-            resultado=BitacoraResultado.FALLO,
-            metadatos={"errores": serializer.errors},
-        )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            raise
