@@ -66,7 +66,7 @@ class HistorialClinicoPorMascotaView(TenantViewMixin, APIView):
         
         if creado:
             self.registrar_bitacora(
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.HISTORIAL_CLINICO_CREADO,
                 descripcion=f"Historial clínico creado para la mascota '{mascota.nombre}'.",
                 modulo=BitacoraModulo.CLINICA,
                 entidad_id=historial.pk,

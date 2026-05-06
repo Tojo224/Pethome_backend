@@ -57,4 +57,24 @@ class HasComponentPermission(BasePermission):
             componente__estado=True,
         )
 
-        return perms.filter(**{action_field: True}).exists()
+        has_perm = perms.filter(**{action_field: True}).exists()
+
+        if not has_perm:
+            from ..services.bitacora_register_service import BitacoraService
+            from ..events.bitacora_events import BitacoraAccion, BitacoraModulo, BitacoraResultado
+            
+            BitacoraService.registrar_evento(
+                accion=BitacoraAccion.ACCESO_DENEGADO,
+                descripcion=f"Intento de acceso no autorizado al componente '{component}' ({request.method}).",
+                usuario=user,
+                request=request,
+                modulo=BitacoraModulo.SISTEMA,
+                resultado=BitacoraResultado.FALLO,
+                metadatos={
+                    "componente": component,
+                    "metodo": request.method,
+                    "path": request.path
+                }
+            )
+
+        return has_perm

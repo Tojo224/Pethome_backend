@@ -1,38 +1,35 @@
 from django.db import models
 
-
 class BitacoraAccion(models.TextChoices):
-    LOGIN = "LOGIN", "Inicio de sesión"
-    LOGOUT = "LOGOUT", "Cierre de sesión"
+    # Autenticación y Sistema
+    LOGIN_EXITOSO = "LOGIN_EXITOSO", "Inicio de sesión exitoso"
     LOGIN_FALLIDO = "LOGIN_FALLIDO", "Inicio de sesión fallido"
-
-    CREAR = "CREAR", "Crear"
-    ACTUALIZAR = "ACTUALIZAR", "Actualizar"
-    ELIMINAR = "ELIMINAR", "Eliminar"
-    VISUALIZAR = "VISUALIZAR", "Visualizar"
-    EXPORTAR = "EXPORTAR", "Exportar"
-
-    CAMBIO_PASSWORD = "CAMBIO_PASSWORD", "Cambio de contraseña"
-    CAMBIO_PERMISOS = "CAMBIO_PERMISOS", "Cambio de permisos"
+    LOGOUT_EXITOSO = "LOGOUT_EXITOSO", "Cierre de sesión exitoso"
     ACCESO_DENEGADO = "ACCESO_DENEGADO", "Acceso denegado"
+    INTENTO_ACCESO_OTRO_TENANT = "INTENTO_ACCESO_OTRO_TENANT", "Intento de acceso a otro tenant"
+    COMPONENTES_CARGADOS = "COMPONENTES_CARGADOS", "Componentes cargados"
 
-    ACTIVAR = "ACTIVAR", "Activar"
-    DESACTIVAR = "DESACTIVAR", "Desactivar"
+    # Usuarios
+    USUARIO_CREADO = "USUARIO_CREADO", "Usuario creado"
+    USUARIO_EDITADO = "USUARIO_EDITADO", "Usuario editado"
+    USUARIO_ACTIVADO = "USUARIO_ACTIVADO", "Usuario activado"
+    USUARIO_DESACTIVADO = "USUARIO_DESACTIVADO", "Usuario desactivado"
+    USUARIO_CONSULTADO = "USUARIO_CONSULTADO", "Usuario consultado"
+    CAMBIO_PASSWORD = "CAMBIO_PASSWORD", "Cambio de contraseña"
 
-    REPROGRAMAR = "REPROGRAMAR", "Reprogramar"
-    CANCELAR = "CANCELAR", "Cancelar"
-    CONFIRMAR = "CONFIRMAR", "Confirmar"
-
-    COMPRAR = "COMPRAR", "Comprar"
-    AJUSTAR_STOCK = "AJUSTAR_STOCK", "Ajustar Stock"
-
-    # Grupos y Permisos (RBAC)
+    # Grupos y Permisos
     GRUPO_CREADO = "GRUPO_CREADO", "Grupo creado"
     GRUPO_EDITADO = "GRUPO_EDITADO", "Grupo editado"
-    GRUPO_ELIMINADO = "GRUPO_ELIMINADO", "Grupo eliminado"
-    PERMISO_ASIGNADO = "PERMISO_ASIGNADO", "Permiso asignado"
+    GRUPO_DESACTIVADO = "GRUPO_DESACTIVADO", "Grupo desactivado"
+    USUARIO_ASIGNADO_GRUPO = "USUARIO_ASIGNADO_GRUPO", "Usuario asignado a grupo"
+    USUARIO_REMOVIDO_GRUPO = "USUARIO_REMOVIDO_GRUPO", "Usuario removido de grupo"
+    PERMISO_CREADO = "PERMISO_CREADO", "Permiso creado"
     PERMISO_EDITADO = "PERMISO_EDITADO", "Permiso editado"
-    PERMISO_REMOVIDO = "PERMISO_REMOVIDO", "Permiso removido"
+    PERMISO_ELIMINADO = "PERMISO_ELIMINADO", "Permiso eliminado"
+
+    # Bitácora
+    BITACORA_CONSULTADA = "BITACORA_CONSULTADA", "Bitácora consultada"
+    BITACORA_EXPORTADA = "BITACORA_EXPORTADA", "Bitácora exportada"
 
     # Clientes y Mascotas
     CLIENTE_CREADO = "CLIENTE_CREADO", "Cliente creado"
@@ -43,44 +40,52 @@ class BitacoraAccion(models.TextChoices):
     MASCOTA_EDITADA = "MASCOTA_EDITADA", "Mascota editada"
     MASCOTA_CONSULTADA = "MASCOTA_CONSULTADA", "Mascota consultada"
     MASCOTA_DESACTIVADA = "MASCOTA_DESACTIVADA", "Mascota desactivada"
-    PERFIL_MASCOTA_CONSULTADO = "PERFIL_MASCOTA_CONSULTADO", "Perfil de mascota consultado"
-    HISTORIAL_SERVICIOS_CONSULTADO = "HISTORIAL_SERVICIOS_CONSULTADO", "Historial de servicios consultado"
 
     # Servicios y Catálogos
     SERVICIO_CREADO = "SERVICIO_CREADO", "Servicio creado"
     SERVICIO_EDITADO = "SERVICIO_EDITADO", "Servicio editado"
-    SERVICIO_CONSULTADO = "SERVICIO_CONSULTADO", "Servicio consultado"
     SERVICIO_ACTIVADO = "SERVICIO_ACTIVADO", "Servicio activado"
     SERVICIO_DESACTIVADO = "SERVICIO_DESACTIVADO", "Servicio desactivado"
+    SERVICIO_CONSULTADO = "SERVICIO_CONSULTADO", "Servicio consultado"
     CATEGORIA_SERVICIO_CREADA = "CATEGORIA_SERVICIO_CREADA", "Categoría de servicio creada"
     CATEGORIA_SERVICIO_EDITADA = "CATEGORIA_SERVICIO_EDITADA", "Categoría de servicio editada"
-    CATEGORIA_SERVICIO_CONSULTADA = "CATEGORIA_SERVICIO_CONSULTADA", "Categoría de servicio consultada"
     PRECIO_SERVICIO_CREADO = "PRECIO_SERVICIO_CREADO", "Precio de servicio creado"
     PRECIO_SERVICIO_EDITADO = "PRECIO_SERVICIO_EDITADO", "Precio de servicio editado"
     PRECIO_SERVICIO_CONSULTADO = "PRECIO_SERVICIO_CONSULTADO", "Precio de servicio consultado"
 
-    # Citas y Reservas
+    # Citas, Clínica y Agenda
     CITA_SOLICITADA = "CITA_SOLICITADA", "Cita solicitada"
-    CITA_CONSULTADA = "CITA_CONSULTADA", "Cita consultada"
-    RESERVA_CONSULTADA = "RESERVA_CONSULTADA", "Reserva consultada"
-    RESERVA_MODIFICADA = "RESERVA_MODIFICADA", "Reserva modificada"
-    RESERVA_ACTIVADA = "RESERVA_ACTIVADA", "Reserva activada"
-    RESERVA_CANCELADA = "RESERVA_CANCELADA", "Reserva cancelada"
-    RESERVA_MODIFICACION_FALLIDA = "RESERVA_MODIFICACION_FALLIDA", "Modificación de reserva fallida"
-    CITA_SOLICITUD_FALLIDA = "CITA_SOLICITUD_FALLIDA", "Solicitud de cita fallida"
-
-    # Clínica
-    CONSULTA_CLINICA_CREADA = "CONSULTA_CLINICA_CREADA", "Consulta clínica creada"
-    CONSULTA_CLINICA_CONSULTADA = "CONSULTA_CLINICA_CONSULTADA", "Consulta clínica consultada"
-    HISTORIAL_CLINICO_CONSULTADO = "HISTORIAL_CLINICO_CONSULTADO", "Historial clínico consultado"
-
-    # Agenda y Disponibilidad (CU-13)
-    AGENDA_CONSULTADA = "AGENDA_CONSULTADA", "Agenda consultada"
-    DISPONIBILIDAD_CONSULTADA = "DISPONIBILIDAD_CONSULTADA", "Disponibilidad consultada"
-    HORARIO_DISPONIBLE_SELECCIONADO = "HORARIO_DISPONIBLE_SELECCIONADO", "Horario seleccionado"
-    CONFLICTO_HORARIO_DETECTADO = "CONFLICTO_HORARIO_DETECTADO", "Conflicto de horario detectado"
     CITA_AGENDADA_DESDE_AGENDA = "CITA_AGENDADA_DESDE_AGENDA", "Cita agendada desde agenda"
     CITA_CONFIRMADA_DESDE_AGENDA = "CITA_CONFIRMADA_DESDE_AGENDA", "Cita confirmada desde agenda"
+    CITA_CONSULTADA = "CITA_CONSULTADA", "Cita consultada"
+    CITA_SOLICITUD_FALLIDA = "CITA_SOLICITUD_FALLIDA", "Solicitud de cita fallida"
+    RESERVA_MODIFICADA = "RESERVA_MODIFICADA", "Reserva modificada"
+    RESERVA_CANCELADA = "RESERVA_CANCELADA", "Reserva cancelada"
+    RESERVA_ACTIVADA = "RESERVA_ACTIVADA", "Reserva activada"
+    RESERVA_CONSULTADA = "RESERVA_CONSULTADA", "Reserva consultada"
+    RESERVA_MODIFICACION_FALLIDA = "RESERVA_MODIFICACION_FALLIDA", "Modificación de reserva fallida"
+    
+    CONSULTA_CLINICA_CREADA = "CONSULTA_CLINICA_CREADA", "Consulta clínica creada"
+    CONSULTA_CLINICA_CONSULTADA = "CONSULTA_CLINICA_CONSULTADA", "Consulta clínica consultada"
+    HISTORIAL_CLINICO_CREADO = "HISTORIAL_CLINICO_CREADO", "Historial clínico creado"
+    HISTORIAL_CLINICO_CONSULTADO = "HISTORIAL_CLINICO_CONSULTADO", "Historial clínico consultado"
+    RECETA_CREADA = "RECETA_CREADA", "Receta creada"
+    TRATAMIENTO_CREADO = "TRATAMIENTO_CREADO", "Tratamiento creado"
+    PERFIL_MASCOTA_CONSULTADO = "PERFIL_MASCOTA_CONSULTADO", "Perfil de mascota consultado"
+    HISTORIAL_SERVICIOS_CONSULTADO = "HISTORIAL_SERVICIOS_CONSULTADO", "Historial de servicios consultado"
+    AGENDA_CONSULTADA = "AGENDA_CONSULTADA", "Agenda consultada"
+    DISPONIBILIDAD_CONSULTADA = "DISPONIBILIDAD_CONSULTADA", "Disponibilidad consultada"
+    CONFLICTO_HORARIO_DETECTADO = "CONFLICTO_HORARIO_DETECTADO", "Conflicto de horario detectado"
+    CATALOGO_CONSULTADO = "CATALOGO_CONSULTADO", "Catálogo consultado"
+
+    # Acciones Genéricas (Legacy)
+    CREAR = "CREAR", "Crear"
+    ACTUALIZAR = "ACTUALIZAR", "Actualizar"
+    ELIMINAR = "ELIMINAR", "Eliminar"
+    VISUALIZAR = "VISUALIZAR", "Visualizar"
+    EXPORTAR = "EXPORTAR", "Exportar"
+    ACTIVAR = "ACTIVAR", "Activar"
+    DESACTIVAR = "DESACTIVAR", "Desactivar"
 
 
 class BitacoraResultado(models.TextChoices):
@@ -89,75 +94,75 @@ class BitacoraResultado(models.TextChoices):
 
 
 class BitacoraModulo(models.TextChoices):
-    AUTENTICACION = "autenticacion", "Autenticación"
-    USUARIOS = "usuarios", "Usuarios"
-    PERFILES = "perfiles", "Perfiles"
-    ROLES = "roles", "Roles"
-    PERMISOS = "permisos", "Permisos"
-    BITACORA = "bitacora", "Bitácora"
-    CLIENTES = "clientes", "Clientes"
-    MASCOTAS = "mascotas", "Mascotas"
-    CATALOGOS = "catalogos", "Catálogos"
-    SERVICIOS = "servicios", "Servicios"
-    PRECIOS = "precios", "Precios"
-    CITAS = "citas", "Citas"
-    CLINICA = "clinica", "Clínica"
-    INVENTARIO = "inventario", "Inventario"
-    PROVEEDORES = "proveedores", "Proveedores"
-    AGENDA_DISPONIBILIDAD = "agenda_disponibilidad", "Agenda y Disponibilidad"
-    SISTEMA = "sistema", "Sistema"
+    AUTENTICACION = "AUTENTICACION", "Autenticación"
+    GESTION_USUARIOS = "GESTION_USUARIOS", "Gestión de Usuarios"
+    BITACORA = "BITACORA", "Bitácora"
+    ROLES_PERMISOS = "ROLES_PERMISOS", "Roles y Permisos"
+    CLIENTES = "CLIENTES", "Clientes"
+    MASCOTAS = "MASCOTAS", "Mascotas"
+    CLINICA = "CLINICA", "Clínica"
+    AGENDA_DISPONIBILIDAD = "AGENDA_DISPONIBILIDAD", "Agenda y Disponibilidad"
+    CATALOGOS = "CATALOGOS", "Catálogos"
+    PRECIOS = "PRECIOS", "Precios"
+    SERVICIOS = "SERVICIOS", "Servicios"
+    SISTEMA = "SISTEMA", "Sistema"
 
 
 BITACORA_EVENTOS_DESCRIPCION = {
-    BitacoraAccion.LOGIN: "Inicio de sesión exitoso.",
-    BitacoraAccion.LOGOUT: "Cierre de sesión exitoso.",
+    BitacoraAccion.LOGIN_EXITOSO: "Inicio de sesión exitoso.",
     BitacoraAccion.LOGIN_FALLIDO: "Intento de inicio de sesión fallido para {correo}.",
-    BitacoraAccion.CREAR: "{actor} creó {entidad} #{entidad_id}.",
-    BitacoraAccion.ACTUALIZAR: "{actor} actualizó {entidad} #{entidad_id}.",
-    BitacoraAccion.ELIMINAR: "{actor} eliminó {entidad} #{entidad_id}.",
-    BitacoraAccion.VISUALIZAR: "{actor} consultó {entidad} #{entidad_id}.",
-    BitacoraAccion.EXPORTAR: "{actor} exportó datos de {entidad}.",
-    BitacoraAccion.CAMBIO_PASSWORD: "{actor} cambió la contraseña de {entidad} #{entidad_id}.",
-    BitacoraAccion.CAMBIO_PERMISOS: "{actor} modificó permisos de {entidad} #{entidad_id}.",
+    BitacoraAccion.LOGOUT_EXITOSO: "Cierre de sesión exitoso.",
     BitacoraAccion.ACCESO_DENEGADO: "Acceso denegado a {actor} en {entidad}.",
-    BitacoraAccion.ACTIVAR: "{actor} activó {entidad} #{entidad_id}.",
-    BitacoraAccion.DESACTIVAR: "{actor} desactivó {entidad} #{entidad_id}.",
-    BitacoraAccion.REPROGRAMAR: "{actor} reprogramó {entidad} #{entidad_id} para {nueva_fecha}.",
-    BitacoraAccion.CANCELAR: "{actor} canceló {entidad} #{entidad_id}.",
-    BitacoraAccion.CONFIRMAR: "{actor} confirmó {entidad} #{entidad_id}.",
-    BitacoraAccion.COMPRAR: "{actor} registró compra de {entidad}.",
-    BitacoraAccion.AJUSTAR_STOCK: "{actor} ajustó stock de {entidad} #{entidad_id}.",
+    BitacoraAccion.INTENTO_ACCESO_OTRO_TENANT: "CRÍTICO: Intento de acceso a datos de otra veterinaria por parte de {actor}.",
+    BitacoraAccion.COMPONENTES_CARGADOS: "{actor} cargó su catálogo de componentes dinámicos para {plataforma}.",
 
-    # Grupos y Permisos
+    BitacoraAccion.USUARIO_CREADO: "{actor} creó un nuevo usuario: {nombre}.",
+    BitacoraAccion.USUARIO_EDITADO: "{actor} editó al usuario #{entidad_id}.",
+    BitacoraAccion.USUARIO_ACTIVADO: "{actor} activó la cuenta del usuario #{entidad_id}.",
+    BitacoraAccion.USUARIO_DESACTIVADO: "{actor} desactivó la cuenta del usuario #{entidad_id}.",
+    BitacoraAccion.USUARIO_CONSULTADO: "{actor} consultó información del usuario #{entidad_id}.",
+    
     BitacoraAccion.GRUPO_CREADO: "{actor} creó el grupo de seguridad '{nombre}'.",
-    BitacoraAccion.PERMISO_ASIGNADO: "{actor} asignó un nuevo permiso al grupo #{entidad_id}.",
+    BitacoraAccion.GRUPO_EDITADO: "{actor} editó el grupo de seguridad #{entidad_id}.",
+    BitacoraAccion.GRUPO_DESACTIVADO: "{actor} desactivó el grupo de seguridad #{entidad_id}.",
+    BitacoraAccion.USUARIO_ASIGNADO_GRUPO: "{actor} asignó al usuario #{user_id} al grupo #{entidad_id}.",
+    BitacoraAccion.USUARIO_REMOVIDO_GRUPO: "{actor} removió al usuario #{user_id} del grupo #{entidad_id}.",
     
-    # Clientes y Mascotas
+    BitacoraAccion.PERMISO_CREADO: "{actor} creó un nuevo permiso para el grupo #{entidad_id}.",
+    BitacoraAccion.PERMISO_EDITADO: "{actor} editó permisos del grupo #{entidad_id}.",
+    BitacoraAccion.PERMISO_ELIMINADO: "{actor} eliminó un permiso del grupo #{entidad_id}.",
+
+    BitacoraAccion.BITACORA_CONSULTADA: "{actor} consultó el historial de la bitácora.",
+    BitacoraAccion.BITACORA_EXPORTADA: "{actor} exportó los registros de la bitácora.",
+
     BitacoraAccion.CLIENTE_CREADO: "{actor} registró un nuevo cliente: {nombre}.",
-    BitacoraAccion.CLIENTE_DESACTIVADO: "{actor} desactivó al cliente {entidad}.",
+    BitacoraAccion.CLIENTE_EDITADO: "{actor} actualizó datos del cliente #{entidad_id}.",
+    BitacoraAccion.CLIENTE_CONSULTADO: "{actor} consultó información del cliente #{entidad_id}.",
     BitacoraAccion.MASCOTA_CREADA: "{actor} registró a la mascota {nombre}.",
-    BitacoraAccion.MASCOTA_EDITADA: "{actor} actualizó los datos de la mascota {nombre}.",
-    BitacoraAccion.MASCOTA_DESACTIVADA: "{actor} eliminó/desactivó a la mascota {nombre}.",
-    BitacoraAccion.PERFIL_MASCOTA_CONSULTADO: "{actor} consultó el perfil completo de {nombre}.",
-    BitacoraAccion.HISTORIAL_SERVICIOS_CONSULTADO: "{actor} consultó el historial de servicios de {nombre}.",
-
-    # Servicios
-    BitacoraAccion.SERVICIO_CREADO: "{actor} creó el servicio: {nombre}.",
-    BitacoraAccion.CATEGORIA_SERVICIO_CREADA: "{actor} creó la categoría de servicio: {nombre}.",
-    BitacoraAccion.PRECIO_SERVICIO_CREADO: "{actor} asignó un nuevo precio al servicio #{entidad_id}.",
-
-    # Citas
-    BitacoraAccion.CITA_SOLICITADA: "Se ha solicitado una nueva cita para {entidad}.",
-    BitacoraAccion.RESERVA_CANCELADA: "Se canceló la reserva #{entidad_id}.",
-
-    # Clínica
-    BitacoraAccion.CONSULTA_CLINICA_CREADA: "Se registró una nueva consulta clínica para {entidad}.",
+    BitacoraAccion.MASCOTA_EDITADA: "{actor} actualizó datos de la mascota {nombre}.",
+    BitacoraAccion.MASCOTA_DESACTIVADA: "{actor} eliminó/desactivó a la mascota #{entidad_id}.",
     
-    # Agenda y Disponibilidad
-    BitacoraAccion.AGENDA_CONSULTADA: "{actor} consultó la agenda de la veterinaria para el día {fecha}.",
-    BitacoraAccion.DISPONIBILIDAD_CONSULTADA: "{actor} consultó disponibilidad de horarios para {fecha}.",
-    BitacoraAccion.CONFLICTO_HORARIO_DETECTADO: "Se detectó un conflicto de horario al intentar agendar en {fecha} {hora}.",
-    BitacoraAccion.CITA_AGENDADA_DESDE_AGENDA: "{actor} agendó una nueva cita #{entidad_id} desde el módulo de agenda.",
+    BitacoraAccion.SERVICIO_CREADO: "{actor} creó el servicio '{nombre}'.",
+    BitacoraAccion.SERVICIO_EDITADO: "{actor} actualizó el servicio #{entidad_id}.",
+    BitacoraAccion.CATEGORIA_SERVICIO_CREADA: "{actor} creó la categoría '{nombre}'.",
+    BitacoraAccion.CATEGORIA_SERVICIO_EDITADA: "{actor} actualizó la categoría #{entidad_id}.",
+    BitacoraAccion.PRECIO_SERVICIO_CREADO: "{actor} asignó un nuevo precio al servicio #{servicio_id}.",
+    BitacoraAccion.PRECIO_SERVICIO_EDITADO: "{actor} actualizó el precio #{entidad_id}.",
+
+    BitacoraAccion.CITA_AGENDADA_DESDE_AGENDA: "Nueva cita #{entidad_id} agendada correctamente.",
+    BitacoraAccion.CITA_CONFIRMADA_DESDE_AGENDA: "Cita #{entidad_id} confirmada desde la agenda.",
+    BitacoraAccion.RESERVA_MODIFICADA: "Reserva #{entidad_id} modificada.",
+    BitacoraAccion.RESERVA_CANCELADA: "Reserva #{entidad_id} cancelada.",
+    
+    BitacoraAccion.CONSULTA_CLINICA_CREADA: "Se registró una nueva consulta clínica para {entidad}.",
+    BitacoraAccion.CONSULTA_CLINICA_CONSULTADA: "Consulta clínica #{entidad_id} visualizada.",
+    BitacoraAccion.HISTORIAL_CLINICO_CREADO: "Se aperturó el historial clínico para la mascota {nombre}.",
+    BitacoraAccion.HISTORIAL_CLINICO_CONSULTADO: "{actor} consultó el historial clínico de {entidad}.",
+    BitacoraAccion.PERFIL_MASCOTA_CONSULTADO: "{actor} consultó el perfil completo de la mascota #{entidad_id}.",
+    
+    BitacoraAccion.AGENDA_CONSULTADA: "{actor} consultó la agenda para el día {fecha}.",
+    BitacoraAccion.DISPONIBILIDAD_CONSULTADA: "{actor} consultó disponibilidad para {fecha}.",
+    BitacoraAccion.CATALOGO_CONSULTADO: "{actor} consultó el catálogo de {entidad_tipo}.",
 }
 
 

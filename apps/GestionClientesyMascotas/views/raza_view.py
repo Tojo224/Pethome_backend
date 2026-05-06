@@ -30,7 +30,7 @@ class RazaListView(generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         _registrar_bitacora_seguro(
             BitacoraService.registrar_evento,
-            accion=BitacoraAccion.VISUALIZAR,
+            accion=BitacoraAccion.CATALOGO_CONSULTADO,
             descripcion="Consulta de catálogo de razas.",
             usuario=request.user,
             request=request,

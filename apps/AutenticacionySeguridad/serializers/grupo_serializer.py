@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from ..models import ComponenteSistema, GrupoPermisoComponente, GrupoUsuario
+from ..models import ComponenteSistema, GrupoPermisoComponente, GrupoUsuario, UsuarioGrupo
 
 
 class GrupoUsuarioSerializer(serializers.ModelSerializer):
@@ -57,3 +57,10 @@ class GrupoPermisoComponenteSerializer(serializers.ModelSerializer):
             })
 
         return attrs
+
+
+class UsuarioGrupoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UsuarioGrupo
+        fields = ["id_usuario_grupo", "usuario", "grupo", "fecha_asignacion", "estado"]
+        read_only_fields = ["id_usuario_grupo", "fecha_asignacion"]

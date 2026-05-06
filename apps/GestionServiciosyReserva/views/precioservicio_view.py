@@ -64,7 +64,7 @@ class PrecioServicioListCreateView(TenantViewMixin, APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
             self.registrar_bitacora(
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.PRECIO_SERVICIO_CREADO,
                 descripcion="Falló la creación de precio de servicio.",
                 modulo=BitacoraModulo.PRECIOS,
                 resultado=BitacoraResultado.FALLO,
@@ -129,7 +129,7 @@ class PrecioServicioDetailView(TenantViewMixin, APIView):
             return Response(serializer.data)
         except ValidationError as e:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.PRECIO_SERVICIO_EDITADO,
                 descripcion="Falló la actualización de precio por validación.",
                 modulo=BitacoraModulo.PRECIOS,
                 entidad_id=pk,

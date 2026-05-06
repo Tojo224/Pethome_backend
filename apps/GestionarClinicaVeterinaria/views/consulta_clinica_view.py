@@ -94,20 +94,19 @@ class ConsultaClinicaListCreateView(TenantViewMixin, APIView):
                 descripcion=f"Consulta clínica #{consulta.pk} registrada para '{historial.mascota.nombre}'.",
                 modulo=BitacoraModulo.CLINICA,
                 entidad_id=consulta.pk,
-                resultado=BitacoraResultado.EXITO
+                resultado=BitacoraResultado.EXITO
             )
             return Response(ConsultaClinicaSerializer(consulta).data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
             self.registrar_bitacora(
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.CONSULTA_CLINICA_CREADA,
                 descripcion="Falló el registro de la consulta clínica.",
                 modulo=BitacoraModulo.CLINICA,
                 resultado=BitacoraResultado.FALLO,
                 metadatos={"error": str(e)}
             )
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class ConsultaClinicaDetailView(TenantViewMixin, APIView):
     permission_classes = [IsAuthenticated, HasComponentPermission]

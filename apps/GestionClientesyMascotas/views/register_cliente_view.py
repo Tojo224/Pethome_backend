@@ -42,7 +42,7 @@ class RegisterClienteView(APIView):
         except Rol.DoesNotExist:
             _registrar_bitacora_seguro(
                 BitacoraService.registrar_evento,
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.CLIENTE_CREADO,
                 descripcion="Falló el registro público de cliente: rol CLIENT no configurado.",
                 request=request,
                 modulo=BitacoraModulo.CLIENTES,
@@ -60,7 +60,7 @@ class RegisterClienteView(APIView):
         except ValidationError:
             _registrar_bitacora_seguro(
                 BitacoraService.registrar_evento,
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.CLIENTE_CREADO,
                 descripcion="Falló el registro público de cliente por errores de validación.",
                 request=request,
                 modulo=BitacoraModulo.CLIENTES,
@@ -74,7 +74,7 @@ class RegisterClienteView(APIView):
 
         _registrar_bitacora_seguro(
             BitacoraService.registrar_evento,
-            accion=BitacoraAccion.CREAR,
+            accion=BitacoraAccion.CLIENTE_CREADO,
             descripcion="Registro público de cliente exitoso.",
             usuario=getattr(perfil, "usuario", None),
             request=request,

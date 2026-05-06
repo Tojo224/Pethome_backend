@@ -47,9 +47,9 @@ class BitacoraListView(TenantViewMixin, generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         response = super().get(request, *args, **kwargs)
         self.registrar_bitacora(
-            accion="BITACORA_CONSULTADA",
+            accion=BitacoraAccion.BITACORA_CONSULTADA,
             descripcion="Consulta al listado de bitácora del sistema.",
-            modulo=BitacoraModulo.AUTENTICACION,
+            modulo=BitacoraModulo.BITACORA,
             resultado=BitacoraResultado.EXITO,
             metadatos={
                 "filtros": request.query_params.dict()
@@ -78,9 +78,9 @@ class BitacoraDetailView(TenantViewMixin, generics.RetrieveAPIView):
         response = super().get(request, *args, **kwargs)
         if response.status_code == 200:
             self.registrar_bitacora(
-                accion="BITACORA_DETALLE_CONSULTADO",
+                accion=BitacoraAccion.BITACORA_CONSULTADA,
                 descripcion="Consulta al detalle de un evento de bitácora.",
-                modulo=BitacoraModulo.AUTENTICACION,
+                modulo=BitacoraModulo.BITACORA,
                 entidad_tipo="Bitacora",
                 entidad_id=kwargs.get("pk"),
                 resultado=BitacoraResultado.EXITO

@@ -64,7 +64,7 @@ class CategoriaServicioListCreateView(TenantViewMixin, APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
             self.registrar_bitacora(
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.SERVICIO_CREADO,
                 descripcion="Falló la creación de categoría de servicio.",
                 modulo=BitacoraModulo.CATALOGOS,
                 resultado=BitacoraResultado.FALLO,
@@ -129,7 +129,7 @@ class CategoriaServicioDetailView(TenantViewMixin, APIView):
             return Response(serializer.data)
         except ValidationError as e:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.SERVICIO_EDITADO,
                 descripcion="Falló la actualización de categoría de servicio por validación.",
                 modulo=BitacoraModulo.CATALOGOS,
                 entidad_id=pk,

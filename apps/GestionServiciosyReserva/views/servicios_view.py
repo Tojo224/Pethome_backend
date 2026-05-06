@@ -78,7 +78,7 @@ class ServicioListCreateView(TenantViewMixin, APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
             self.registrar_bitacora(
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.SERVICIO_CREADO,
                 descripcion="Falló la creación de servicio.",
                 modulo=BitacoraModulo.SERVICIOS,
                 resultado=BitacoraResultado.FALLO,
@@ -139,7 +139,7 @@ class ServicioDetailView(TenantViewMixin, APIView):
             return Response(serializer.data)
         except ValidationError as e:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.SERVICIO_EDITADO,
                 descripcion="Falló la actualización de servicio por validación.",
                 modulo=BitacoraModulo.SERVICIOS,
                 entidad_id=pk,

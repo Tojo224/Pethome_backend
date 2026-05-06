@@ -101,7 +101,7 @@ class ClienteListCreateView(TenantViewMixin, APIView):
             data["id_rol"] = rol_cliente.pk
         except Rol.DoesNotExist:
             self.registrar_bitacora(
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.CLIENTE_CREADO,
                 descripcion="Falló la creación de cliente: rol CLIENT no configurado.",
                 modulo=BitacoraModulo.CLIENTES,
                 entidad_tipo="Cliente",
@@ -117,7 +117,7 @@ class ClienteListCreateView(TenantViewMixin, APIView):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             self.registrar_bitacora(
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.CLIENTE_CREADO,
                 descripcion="Falló la creación de cliente por errores de validación.",
                 modulo=BitacoraModulo.CLIENTES,
                 entidad_tipo="Cliente",
@@ -187,7 +187,7 @@ class ClienteDetailView(TenantViewMixin, APIView):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.CLIENTE_EDITADO,
                 descripcion="Falló la actualización completa de cliente.",
                 modulo=BitacoraModulo.CLIENTES,
                 entidad_tipo="Cliente",
@@ -231,7 +231,7 @@ class ClienteDetailView(TenantViewMixin, APIView):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.CLIENTE_EDITADO,
                 descripcion="Falló la actualización parcial de cliente.",
                 modulo=BitacoraModulo.CLIENTES,
                 entidad_tipo="Cliente",
@@ -252,7 +252,7 @@ class ClienteDetailView(TenantViewMixin, APIView):
         )
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.ACTUALIZAR,
+            accion=BitacoraAccion.CLIENTE_EDITADO,
             descripcion="Cliente actualizado parcialmente.",
             modulo=BitacoraModulo.CLIENTES,
             entidad_tipo="Cliente",
@@ -304,7 +304,7 @@ class ClienteMeView(TenantViewMixin, APIView):
         serializer = PerfilSerializer(perfil)
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.VISUALIZAR,
+            accion=BitacoraAccion.CLIENTE_CONSULTADO,
             descripcion="Cliente consultó su propio perfil.",
             modulo=BitacoraModulo.CLIENTES,
             entidad_tipo="Cliente",
@@ -326,7 +326,7 @@ class ClienteMeView(TenantViewMixin, APIView):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+            accion=BitacoraAccion.CLIENTE_EDITADO,
                 descripcion="Falló la actualización de perfil propio del cliente.",
                 modulo=BitacoraModulo.CLIENTES,
                 entidad_tipo="Cliente",
@@ -347,7 +347,7 @@ class ClienteMeView(TenantViewMixin, APIView):
         )
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.ACTUALIZAR,
+            accion=BitacoraAccion.CLIENTE_EDITADO,
             descripcion="Cliente actualizó su propio perfil.",
             modulo=BitacoraModulo.CLIENTES,
             entidad_tipo="Cliente",

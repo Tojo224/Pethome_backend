@@ -37,7 +37,7 @@ class UsuarioListView(generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         _registrar_bitacora_seguro(
             BitacoraService.registrar_evento,
-            accion=BitacoraAccion.VISUALIZAR,
+            accion=BitacoraAccion.USUARIO_CONSULTADO,
             descripcion="Consulta de usuarios activos para selector.",
             usuario=request.user,
             request=request,

@@ -9,9 +9,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, OpenApiTypes, extend_schema
 
-from apps.AutenticacionySeguridad.services.perfil_service import deactivate_user_profile
+from apps.AutenticacionySeguridad.services.perfil_service import deactivate_user_profile, activate_user_profile
 from apps.AutenticacionySeguridad.mixins.tenant_mixins import TenantViewMixin
 from apps.AutenticacionySeguridad.selectors.perfil_selector import PerfilSelector
+from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
 from apps.AutenticacionySeguridad.utils.audit_utils import (
     obtener_snapshot_perfil,
     construir_metadatos_actualizacion_perfil,
@@ -25,8 +26,11 @@ from ..serializers.perfil_serializer import (
     PerfilUpdateSerializer
 )
 
-
-
+def _registrar_bitacora_seguro(func, *args, **kwargs):
+    try:
+        func(*args, **kwargs)
+    except Exception:
+        pass
 
 class UsuarioPagination(PageNumberPagination):
     page_size = 20
@@ -64,9 +68,9 @@ class UsuarioListCreateView(TenantViewMixin, APIView):
         serializer = PerfilSerializer(page, many=True)
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.VISUALIZAR,
+            accion=BitacoraAccion.USUARIO_CONSULTADO,
             descripcion="Listado de usuarios consultado desde administración.",
-            modulo=BitacoraModulo.USUARIOS,
+            modulo=BitacoraModulo.GESTION_USUARIOS,
             resultado=BitacoraResultado.EXITO,
             metadatos={
                 "total": queryset.count(),
@@ -89,9 +93,9 @@ class UsuarioListCreateView(TenantViewMixin, APIView):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             self.registrar_bitacora(
-                accion=BitacoraAccion.CREAR,
+                accion=BitacoraAccion.USUARIO_CREADO,
                 descripcion="Falló la creación de usuario desde administración.",
-                modulo=BitacoraModulo.USUARIOS,
+                modulo=BitacoraModulo.GESTION_USUARIOS,
                 resultado=BitacoraResultado.FALLO,
                 metadatos={"errores": serializer.errors},
             )
@@ -100,9 +104,9 @@ class UsuarioListCreateView(TenantViewMixin, APIView):
         perfil = serializer.save()
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.CREAR,
+            accion=BitacoraAccion.USUARIO_CREADO,
             descripcion="Usuario creado desde administración.",
-            modulo=BitacoraModulo.USUARIOS,
+            modulo=BitacoraModulo.GESTION_USUARIOS,
             entidad_tipo="User",
             entidad_id=getattr(perfil.usuario, "id_usuario", ""),
             resultado=BitacoraResultado.EXITO,
@@ -162,7 +166,7 @@ class UsuarioClienteListView(TenantViewMixin, APIView):
         serializer = PerfilSerializer(page, many=True)
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.VISUALIZAR,
+            accion=BitacoraAccion.USUARIO_CONSULTADO,
             descripcion="Listado de clientes consultado desde administración.",
             modulo=BitacoraModulo.CLIENTES,
             resultado=BitacoraResultado.EXITO,
@@ -198,11 +202,11 @@ class UsuarioDetailView(TenantViewMixin, APIView):
 
         _registrar_bitacora_seguro(
             BitacoraService.registrar_evento,
-            accion=BitacoraAccion.VISUALIZAR,
+            accion=BitacoraAccion.USUARIO_CONSULTADO,
             descripcion="Detalle de usuario consultado desde administración.",
             usuario=request.user,
             request=request,
-            modulo=BitacoraModulo.USUARIOS,
+            modulo=BitacoraModulo.GESTION_USUARIOS,
             entidad_tipo="User",
             entidad_id=getattr(perfil.usuario, "id_usuario", ""),
             resultado=BitacoraResultado.EXITO,
@@ -223,9 +227,9 @@ class UsuarioDetailView(TenantViewMixin, APIView):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.USUARIO_EDITADO,
                 descripcion="Falló la actualización completa de usuario desde administración.",
-                modulo=BitacoraModulo.USUARIOS,
+                modulo=BitacoraModulo.GESTION_USUARIOS,
                 entidad_tipo="User",
                 entidad_id=getattr(perfil.usuario, "id_usuario", ""),
                 resultado=BitacoraResultado.FALLO,
@@ -244,9 +248,9 @@ class UsuarioDetailView(TenantViewMixin, APIView):
         )
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.ACTUALIZAR,
+            accion=BitacoraAccion.USUARIO_EDITADO,
             descripcion="Usuario actualizado desde administración.",
-            modulo=BitacoraModulo.USUARIOS,
+            modulo=BitacoraModulo.GESTION_USUARIOS,
             entidad_tipo="User",
             entidad_id=getattr(perfil.usuario, "id_usuario", ""),
             resultado=BitacoraResultado.EXITO,
@@ -267,9 +271,9 @@ class UsuarioDetailView(TenantViewMixin, APIView):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.USUARIO_EDITADO,
                 descripcion="Falló la actualización parcial de usuario desde administración.",
-                modulo=BitacoraModulo.USUARIOS,
+                modulo=BitacoraModulo.GESTION_USUARIOS,
                 entidad_tipo="User",
                 entidad_id=getattr(perfil.usuario, "id_usuario", ""),
                 resultado=BitacoraResultado.FALLO,
@@ -288,9 +292,9 @@ class UsuarioDetailView(TenantViewMixin, APIView):
         )
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.ACTUALIZAR,
+            accion=BitacoraAccion.USUARIO_EDITADO,
             descripcion="Usuario actualizado parcialmente desde administración.",
-            modulo=BitacoraModulo.USUARIOS,
+            modulo=BitacoraModulo.GESTION_USUARIOS,
             entidad_tipo="User",
             entidad_id=getattr(perfil.usuario, "id_usuario", ""),
             resultado=BitacoraResultado.EXITO,
@@ -308,9 +312,9 @@ class UsuarioDetailView(TenantViewMixin, APIView):
         deactivate_user_profile(perfil=perfil)
 
         self.registrar_bitacora(
-            accion=BitacoraAccion.DESACTIVAR,
+            accion=BitacoraAccion.USUARIO_DESACTIVADO,
             descripcion="Usuario desactivado desde administración.",
-            modulo=BitacoraModulo.USUARIOS,
+            modulo=BitacoraModulo.GESTION_USUARIOS,
             entidad_tipo="User",
             entidad_id=getattr(perfil.usuario, "id_usuario", ""),
             resultado=BitacoraResultado.EXITO,
@@ -318,3 +322,30 @@ class UsuarioDetailView(TenantViewMixin, APIView):
         )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class UsuarioActivarView(TenantViewMixin, APIView):
+    """
+    POST /api/auth/usuarios/<int:pk>/activar/
+    Reactiva una cuenta de usuario.
+    """
+    permission_classes = [IsAuthenticated, HasComponentPermission]
+    rbac_component = "SEG_USUARIOS"
+
+    def post(self, request, pk):
+        perfil = PerfilSelector.get_perfil_with_details(pk, veterinaria_id=self.get_tenant_id())
+        if not perfil:
+            return Response({"error": "No encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            
+        activate_user_profile(perfil=perfil)
+
+        self.registrar_bitacora(
+            accion=BitacoraAccion.USUARIO_ACTIVADO,
+            descripcion="Usuario reactivado desde administración.",
+            modulo=BitacoraModulo.GESTION_USUARIOS,
+            entidad_tipo="User",
+            entidad_id=getattr(perfil.usuario, "id_usuario", ""),
+            resultado=BitacoraResultado.EXITO,
+            metadatos={"correo_objetivo": perfil.usuario.correo},
+        )
+
+        return Response({"detail": "Usuario activado correctamente."}, status=status.HTTP_200_OK)

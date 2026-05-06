@@ -47,7 +47,7 @@ class CitaListCreateView(TenantViewMixin, APIView):
         self.registrar_bitacora(
             accion=BitacoraAccion.CITA_CONSULTADA,
             descripcion="Listado de citas consultado.",
-            modulo=BitacoraModulo.CITAS,
+            modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
             metadatos={"total": citas.count()},
         )
 
@@ -94,7 +94,7 @@ class CitaListCreateView(TenantViewMixin, APIView):
             self.registrar_bitacora(
                 accion=BitacoraAccion.CITA_SOLICITUD_FALLIDA,
                 descripcion="Falló la solicitud de cita por errores de validación.",
-                modulo=BitacoraModulo.CITAS,
+                modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
                 resultado=BitacoraResultado.FALLO,
                 metadatos={"errores": e.detail},
             )
@@ -119,7 +119,7 @@ class CitaDetailView(TenantViewMixin, APIView):
             self.registrar_bitacora(
                 accion=BitacoraAccion.RESERVA_CONSULTADA,
                 descripcion="Falló la consulta de cita: no encontrada o sin acceso.",
-                modulo=BitacoraModulo.CITAS,
+                modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
                 entidad_tipo="Cita",
                 entidad_id=pk,
                 resultado=BitacoraResultado.FALLO,
@@ -133,7 +133,7 @@ class CitaDetailView(TenantViewMixin, APIView):
         self.registrar_bitacora(
             accion=BitacoraAccion.RESERVA_CONSULTADA,
             descripcion=f"Consulta al detalle de la reserva #{pk}.",
-            modulo=BitacoraModulo.CITAS,
+            modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
             entidad_tipo="Cita",
             entidad_id=getattr(cita, "id_cita", pk),
             resultado=BitacoraResultado.EXITO,
@@ -159,16 +159,16 @@ class CitaDetailView(TenantViewMixin, APIView):
             self.registrar_bitacora(
                 accion=BitacoraAccion.RESERVA_MODIFICADA,
                 descripcion=f"Reserva #{pk} modificada manualmente.",
-                modulo=BitacoraModulo.CITAS,
+                modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
                 entidad_id=pk,
                 resultado=BitacoraResultado.EXITO,
             )
             return Response(serializer.data)
         except ValidationError as e:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.RESERVA_MODIFICADA,
                 descripcion="Falló la actualización de cita por validación.",
-                modulo=BitacoraModulo.CITAS,
+                modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
                 entidad_id=pk,
                 resultado=BitacoraResultado.FALLO,
                 metadatos={"errores": e.detail},
@@ -191,7 +191,7 @@ class CitaDetailView(TenantViewMixin, APIView):
         self.registrar_bitacora(
             accion=accion,
             descripcion=f"La reserva #{pk} ha sido {'reactivada' if cita.estado == 'PENDIENTE' else 'cancelada'}.",
-            modulo=BitacoraModulo.CITAS,
+            modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
             entidad_id=pk,
             resultado=BitacoraResultado.EXITO,
             metadatos={"estado": cita.estado},
@@ -254,7 +254,7 @@ class CitaEstadoUpdateView(TenantViewMixin, APIView):
             self.registrar_bitacora(
                 accion=BitacoraAccion.RESERVA_MODIFICACION_FALLIDA,
                 descripcion="Falló la actualización de reserva.",
-                modulo=BitacoraModulo.CITAS,
+                modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
                 entidad_id=pk,
                 resultado=BitacoraResultado.FALLO,
                 metadatos={"errores": e.detail},

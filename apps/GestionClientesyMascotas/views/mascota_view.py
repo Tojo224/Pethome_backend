@@ -159,7 +159,7 @@ class MascotaViewSet(TenantViewMixin, viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             self.registrar_bitacora(
-                accion=BitacoraAccion.ACTUALIZAR,
+                accion=BitacoraAccion.MASCOTA_EDITADA,
                 descripcion="Falló la actualización de mascota por errores de validación.",
                 modulo=BitacoraModulo.MASCOTAS,
                 entidad_id=getattr(instance, "id_mascota", ""),
