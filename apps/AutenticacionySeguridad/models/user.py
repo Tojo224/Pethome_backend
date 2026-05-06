@@ -19,8 +19,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         on_delete=models.PROTECT,
         db_column="id_veterinaria",
         related_name="usuarios",
-        null=False,
-        blank=False,
+        null=True,
+        blank=True,
     )
 
     is_active = models.BooleanField(default=True)

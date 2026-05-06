@@ -6,6 +6,8 @@ class GrupoUsuario(models.Model):
     nombre = models.CharField(max_length=120)
     descripcion = models.TextField(blank=True, null=True)
     estado = models.BooleanField(default=True)
+    es_base = models.BooleanField(default=False)
+    rol_base = models.CharField(max_length=50, blank=True, null=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     veterinaria = models.ForeignKey(
         "AutenticacionySeguridad.Veterinaria",

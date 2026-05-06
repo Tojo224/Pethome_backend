@@ -11,6 +11,7 @@ class Veterinaria(models.Model):
     direccion = models.TextField(blank=True, null=True)
     logo = models.CharField(max_length=255, blank=True, null=True)
     estado = models.BooleanField(default=True)
+    permite_auto_registro_clientes = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
