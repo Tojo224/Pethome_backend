@@ -28,7 +28,7 @@ def get_tokens_for_user(user):
     vet_id = getattr(user, "veterinaria_id", None)
     vet_slug = getattr(veterinaria, "slug", "") if veterinaria else ""
     vet_nombre = getattr(veterinaria, "nombre", "") if veterinaria else ""
-    rol_id = getattr(user, "rol_id", None)
+    rol_id = getattr(user, "role_id", None)
     is_super = getattr(user, "is_superuser", False)
 
     # Collect basic permissions if possible (assuming user has a property or we can fetch, but we might just leave an empty list or basic summary)
@@ -174,12 +174,10 @@ class LogoutView(TenantViewMixin, APIView):
                 token = RefreshToken(refresh_token)
                 token.blacklist()
             except TokenError:
-                _registrar_bitacora_seguro(
-                    BitacoraService.registrar_evento,
-                    accion="LOGOUT_TOKEN_INVALIDO",
+                self.registrar_bitacora(
+                    accion=BitacoraAccion.LOGOUT,
                     descripcion="Intento de logout con token inválido o expirado.",
                     usuario=actor,
-                    request=request,
                     modulo=BitacoraModulo.AUTENTICACION,
                     resultado=BitacoraResultado.FALLO,
                 )
@@ -188,12 +186,10 @@ class LogoutView(TenantViewMixin, APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             except Exception as exc:
-                _registrar_bitacora_seguro(
-                    BitacoraService.registrar_evento,
-                    accion="LOGOUT_FALLIDO",
+                self.registrar_bitacora(
+                    accion=BitacoraAccion.LOGOUT,
                     descripcion="Error interno al cerrar sesión.",
                     usuario=actor,
-                    request=request,
                     modulo=BitacoraModulo.AUTENTICACION,
                     resultado=BitacoraResultado.FALLO,
                     metadatos={"error": str(exc)},
@@ -206,12 +202,10 @@ class LogoutView(TenantViewMixin, APIView):
         if hasattr(request, "tenant"):
             request.tenant = None
 
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
+        self.registrar_bitacora(
             accion=BitacoraAccion.LOGOUT,
             descripcion="Cierre de sesión exitoso.",
             usuario=actor,
-            request=request,
             modulo=BitacoraModulo.AUTENTICACION,
             resultado=BitacoraResultado.EXITO,
         )
@@ -233,12 +227,10 @@ class MeView(TenantViewMixin, APIView):
         responses={200: UserSerializer},
     )
     def get(self, request):
-        _registrar_bitacora_seguro(
-            BitacoraService.registrar_evento,
+        self.registrar_bitacora(
             accion=BitacoraAccion.VISUALIZAR,
             descripcion="Consulta de datos del usuario autenticado.",
             usuario=request.user,
-            request=request,
             modulo=BitacoraModulo.USUARIOS,
             entidad_tipo="User",
             entidad_id=getattr(request.user, "id_usuario", ""),
@@ -285,3 +277,6 @@ class AuthRootView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+

@@ -2,6 +2,7 @@ from rest_framework import status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, OpenApiTypes, extend_schema
 
 from apps.AutenticacionySeguridad.events.bitacora_events import (
@@ -218,7 +219,7 @@ class MascotaViewSet(TenantViewMixin, viewsets.ModelViewSet):
         tags=["Mascotas"],
         responses={200: MascotaPerfilSeguimientoSerializer},
     )
-    @viewsets.decorators.action(detail=True, methods=["get"], url_path="perfil-seguimiento")
+    @action(detail=True, methods=["get"], url_path="perfil-seguimiento")
     def perfil_seguimiento(self, request, id_mascota=None):
         mascota = self.get_object()
         

@@ -12,11 +12,11 @@ class MascotaSelector:
         Si el usuario es un cliente, solo retorna sus mascotas.
         """
         queryset = Mascota.objects.filter(veterinaria_id=veterinaria_id).select_related(
-            "propietario", "especie", "raza"
+            "usuario", "especie", "raza"
         )
         
         if user and hasattr(user, "role") and user.role.nombre == Rol.RolName.CLIENT:
-            queryset = queryset.filter(propietario__usuario=user)
+            queryset = queryset.filter(usuario=user)
             
         return queryset
 
@@ -25,10 +25,10 @@ class MascotaSelector:
         queryset = Mascota.objects.filter(pk=pk, veterinaria_id=veterinaria_id)
         
         if user and hasattr(user, "role") and user.role.nombre == Rol.RolName.CLIENT:
-            queryset = queryset.filter(propietario__usuario=user)
+            queryset = queryset.filter(usuario=user)
             
         return queryset.select_related(
-            "propietario", "especie", "raza"
+            "usuario", "especie", "raza"
         ).first()
 
     @staticmethod
@@ -38,7 +38,8 @@ class MascotaSelector:
         if search:
             queryset = queryset.filter(
                 Q(nombre__icontains=search) |
-                Q(propietario__nombre__icontains=search)
+                Q(usuario__perfil__nombre__icontains=search) |
+                Q(usuario__correo__icontains=search)
             )
             
         if especie_id:

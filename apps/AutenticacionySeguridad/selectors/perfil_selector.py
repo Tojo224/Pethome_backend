@@ -1,14 +1,14 @@
 from django.db.models import Q
-from ..models import Usuarios, Perfil, Suscripcion
+from ..models import User, Perfil, Suscripcion
 
 class UsuarioSelector:
     @staticmethod
     def get_usuario_by_id(usuario_id):
-        return Usuarios.objects.filter(id_usuario=usuario_id).first()
+        return User.objects.filter(id_usuario=usuario_id).first()
 
     @staticmethod
     def get_usuario_by_email(email):
-        return Usuarios.objects.filter(correo=email).first()
+        return User.objects.filter(correo=email).first()
 
 class PerfilSelector:
     @staticmethod

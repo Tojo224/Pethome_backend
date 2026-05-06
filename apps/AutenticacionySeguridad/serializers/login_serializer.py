@@ -39,6 +39,11 @@ class LoginSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"detail": "El usuario no tiene veterinaria asignada.", "code": "LOGIN_VETERINARIA_INACTIVA"}
                 )
+            veterinaria = getattr(user, "veterinaria", None)
+            if not veterinaria or not getattr(veterinaria, "estado", False):
+                raise serializers.ValidationError(
+                    {"detail": "La veterinaria no esta activa.", "code": "LOGIN_VETERINARIA_INACTIVA"}
+                )
 
             suscripcion = (
                 Suscripcion.objects.filter(veterinaria_id=veterinaria_id)
