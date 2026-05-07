@@ -167,6 +167,7 @@ class BaseAccessSeedService:
         "MOVIL_NOTIFICACIONES",
         "CLI_CLIENTES",
         "CLI_MASCOTAS",
+        "CLI_CATALOGOS",
         "SERV_CITAS",
         "SERV_SERVICIOS",
         "SERV_PRECIOS",

@@ -1,3 +1,8 @@
+from pathlib import Path
+from uuid import uuid4
+
+from django.core.files.storage import default_storage
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -133,18 +138,19 @@ class MascotaViewSet(TenantViewMixin, viewsets.ModelViewSet):
         return Response(data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
-        MascotaService.crear_mascota(
+        mascota = MascotaService.crear_mascota(
             veterinaria_id=self.get_tenant_id(),
-            propietario_id=serializer.validated_data.get("usuario_id"),
-            especie_id=serializer.validated_data.get("especie_id"),
-            raza_id=serializer.validated_data.get("raza_id"),
+            usuario=serializer.validated_data.get("usuario"),
+            especie=serializer.validated_data.get("especie"),
+            raza=serializer.validated_data.get("raza"),
             nombre=serializer.validated_data.get("nombre"),
             sexo=serializer.validated_data.get("sexo"),
-            fecha_nacimiento=serializer.validated_data.get("fecha_nacimiento"),
+            fecha_nac=serializer.validated_data.get("fecha_nac"),
             peso=serializer.validated_data.get("peso"),
             color=serializer.validated_data.get("color"),
-            señas_particulares=serializer.validated_data.get("señas_particulares"),
+            notas_generales=serializer.validated_data.get("notas_generales"),
         )
+        serializer.instance = mascota
 
     @extend_schema(
         tags=["Mascotas"],
@@ -243,3 +249,46 @@ class MascotaViewSet(TenantViewMixin, viewsets.ModelViewSet):
 
         serializer = MascotaPerfilSeguimientoSerializer(mascota, context={"request": request})
         return Response(serializer.data)
+
+    @extend_schema(
+        tags=["Mascotas"],
+        responses={201: OpenApiResponse(description="Foto subida correctamente.")},
+    )
+    @action(detail=False, methods=["post"], url_path="upload-foto")
+    def upload_foto(self, request):
+        file = request.FILES.get("file")
+        if not file:
+            return Response(
+                {"detail": "Debe enviar un archivo en el campo 'file'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        allowed_ext = {".jpg", ".jpeg", ".png", ".webp"}
+        ext = Path(file.name).suffix.lower()
+        if ext not in allowed_ext:
+            return Response(
+                {"detail": "Formato no permitido. Use JPG, PNG o WEBP."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        max_size_bytes = 5 * 1024 * 1024
+        if file.size > max_size_bytes:
+            return Response(
+                {"detail": "La imagen supera el tamaño máximo permitido (5MB)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tenant_id = self.get_tenant_id()
+        ts = timezone.now().strftime("%Y%m%d%H%M%S")
+        safe_name = f"{ts}_{uuid4().hex}{ext}"
+        relative_path = f"vet_{tenant_id}/mascotas/{safe_name}"
+        stored_path = default_storage.save(relative_path, file)
+        file_url = default_storage.url(stored_path)
+
+        return Response(
+            {
+                "url": file_url,
+                "path": stored_path,
+            },
+            status=status.HTTP_201_CREATED,
+        )

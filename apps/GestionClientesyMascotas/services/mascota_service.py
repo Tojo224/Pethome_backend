@@ -6,7 +6,19 @@ from apps.AutenticacionySeguridad.selectors.perfil_selector import SuscripcionSe
 class MascotaService:
     @staticmethod
     @transaction.atomic
-    def crear_mascota(*, veterinaria_id, propietario_id, especie_id, raza_id, nombre, sexo, fecha_nacimiento=None, peso=None, color=None, señas_particulares=None):
+    def crear_mascota(
+        *,
+        veterinaria_id,
+        usuario,
+        especie,
+        raza,
+        nombre,
+        sexo,
+        fecha_nac=None,
+        peso=None,
+        color=None,
+        notas_generales=None
+    ):
         """
         Crea una mascota validando los límites del plan de la veterinaria.
         """
@@ -26,15 +38,15 @@ class MascotaService:
 
         mascota = Mascota.objects.create(
             veterinaria_id=veterinaria_id,
-            propietario_id=propietario_id,
-            especie_id=especie_id,
-            raza_id=raza_id,
+            usuario=usuario,
+            especie=especie,
+            raza=raza,
             nombre=nombre,
             sexo=sexo,
-            fecha_nacimiento=fecha_nacimiento,
+            fecha_nac=fecha_nac,
             peso=peso,
             color=color,
-            señas_particulares=señas_particulares
+            notas_generales=notas_generales,
         )
         return mascota
 

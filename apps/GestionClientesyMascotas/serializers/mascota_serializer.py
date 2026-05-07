@@ -89,6 +89,75 @@ class MascotaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id_mascota", "fecha_registro"]
 
+    def to_internal_value(self, data):
+        """
+        Acepta variantes de nombres de campos que puede enviar frontend móvil
+        sin romper el contrato actual del backend.
+        """
+        mutable = dict(data)
+
+        # Alias para especie/raza (móvil suele enviar snake/camel en inglés)
+        if "especie_id" not in mutable:
+            if "species_id" in mutable:
+                mutable["especie_id"] = mutable.get("species_id")
+            elif "speciesId" in mutable:
+                mutable["especie_id"] = mutable.get("speciesId")
+            elif "especie" in mutable and isinstance(mutable.get("especie"), int):
+                mutable["especie_id"] = mutable.get("especie")
+
+        if "raza_id" not in mutable:
+            if "breed_id" in mutable:
+                mutable["raza_id"] = mutable.get("breed_id")
+            elif "breedId" in mutable:
+                mutable["raza_id"] = mutable.get("breedId")
+            elif "raza" in mutable and isinstance(mutable.get("raza"), int):
+                mutable["raza_id"] = mutable.get("raza")
+
+        # Alias de fecha de nacimiento
+        if "fecha_nac" not in mutable:
+            if "fechaNacimiento" in mutable:
+                mutable["fecha_nac"] = mutable.get("fechaNacimiento")
+            elif "birth_date" in mutable:
+                mutable["fecha_nac"] = mutable.get("birth_date")
+
+        # Normalizar sexo para evitar 400 por mayúsculas/minúsculas o etiquetas UI
+        if "sexo" in mutable and mutable.get("sexo") not in (None, ""):
+            sexo_val = str(mutable.get("sexo")).strip().upper()
+            if sexo_val in {"M", "MACHO", "MALE"}:
+                mutable["sexo"] = "MACHO"
+            elif sexo_val in {"H", "HEMBRA", "F", "FEMALE"}:
+                mutable["sexo"] = "HEMBRA"
+
+        # Normalizar vacíos en opcionales para evitar 400 por tipo inválido
+        optional_nullable_fields = [
+            "raza_id",
+            "sexo",
+            "fecha_nac",
+            "peso",
+            "tamano",
+            "foto",
+            "color",
+            "alergias",
+            "notas_generales",
+        ]
+        for field in optional_nullable_fields:
+            if field in mutable and mutable[field] == "":
+                mutable[field] = None
+
+        # `estado` no acepta null en modelo. Si móvil lo manda null/vacío, usar True por defecto.
+        if "estado" in mutable:
+            estado_val = mutable.get("estado")
+            if estado_val in ("", None, "null", "None"):
+                mutable["estado"] = True
+            elif isinstance(estado_val, str):
+                norm = estado_val.strip().lower()
+                if norm in {"true", "1", "si", "sí", "yes"}:
+                    mutable["estado"] = True
+                elif norm in {"false", "0", "no"}:
+                    mutable["estado"] = False
+
+        return super().to_internal_value(mutable)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = self.context.get("request")
