@@ -8,8 +8,6 @@ from .views.register_cliente_view import RegisterClienteView
 
 from .views.mascota_view import MascotaViewSet
 from .views.mascota_perfil_view import MascotaPerfilView, MascotaHistorialClinicoView, MascotasMeView
-from .views.especie_view import EspecieListView
-from .views.raza_view import RazaListView
 from .views.usuario_view import UsuarioListView
 
 
@@ -31,8 +29,6 @@ urlpatterns = [
     path("mascotas/<int:id_mascota>/historial-clinico/", MascotaHistorialClinicoView.as_view(), name="mascota-historial-clinico"),
     path("", include(router.urls)),
 
-    # CATÁLOGOS
-    path("especies/", EspecieListView.as_view(), name="especie-list"),
-    path("razas/", RazaListView.as_view(), name="raza-list"),
+    # OTROS
     path("usuarios/", UsuarioListView.as_view(), name="usuario-list"),
 ]

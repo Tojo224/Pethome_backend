@@ -19,13 +19,26 @@ class GrupoUsuarioSerializer(serializers.ModelSerializer):
         read_only_fields = ["id_grupo", "fecha_creacion", "id_veterinaria"]
 
 
+class ComponenteNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ComponenteSistema
+        fields = ["id_componente", "codigo", "nombre", "tipo", "plataforma"]
+
 class GrupoPermisoComponenteSerializer(serializers.ModelSerializer):
+    componente = ComponenteNestedSerializer(read_only=True)
+    componente_id = serializers.PrimaryKeyRelatedField(
+        queryset=ComponenteSistema.objects.filter(estado=True),
+        source="componente",
+        write_only=True,
+    )
+
     class Meta:
         model = GrupoPermisoComponente
         fields = [
             "id_permiso_componente",
             "grupo",
             "componente",
+            "componente_id",
             "puede_ver",
             "puede_crear",
             "puede_editar",

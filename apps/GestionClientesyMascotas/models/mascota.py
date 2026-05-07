@@ -1,8 +1,8 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from .especie import Especie
-from .raza import Raza
+from apps.GestionServiciosyReserva.models.especie import Especie
+from apps.GestionServiciosyReserva.models.raza import Raza
 
 
 class Mascota(models.Model):

@@ -1,3 +1,1 @@
-from .especie_serializer import EspecieSerializer
-from .raza_serializer import RazaSerializer
 from .mascota_serializer import MascotaSerializer

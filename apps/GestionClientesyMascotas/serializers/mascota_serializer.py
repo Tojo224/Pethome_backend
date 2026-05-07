@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from apps.AutenticacionySeguridad.enums.roles import RoleEnum
 from apps.GestionClientesyMascotas.models.mascota import Mascota
-from apps.GestionClientesyMascotas.models.especie import Especie
-from apps.GestionClientesyMascotas.models.raza import Raza
+from apps.GestionServiciosyReserva.models.especie import Especie
+from apps.GestionServiciosyReserva.models.raza import Raza
 from apps.AutenticacionySeguridad.models.user import User
 
 

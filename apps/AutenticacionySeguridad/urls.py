@@ -26,6 +26,7 @@ from .views.grupo_views import (
     GrupoPermisoComponenteListCreateView,
     GrupoPermisoComponenteDetailView,
 )
+from .views.componente_sistema_views import ComponenteSistemaListView
 from .views.usuario_grupo_view import (
     UsuarioGrupoListCreateView,
     UsuarioGrupoDeleteView,
@@ -59,4 +60,5 @@ urlpatterns = [
     path("grupos-permisos/", GrupoPermisoComponenteListCreateView.as_view(), name="grupo-permiso-list-create"),
     path("grupos-permisos/<int:pk>/", GrupoPermisoComponenteDetailView.as_view(), name="grupo-permiso-detail"),
 
+    path("componentes-sistema/", ComponenteSistemaListView.as_view(), name="componentes-sistema-list"),
 ]

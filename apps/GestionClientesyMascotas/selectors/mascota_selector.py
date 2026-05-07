@@ -1,7 +1,7 @@
 from django.db.models import Q
 from ..models.mascota import Mascota
-from ..models.especie import Especie
-from ..models.raza import Raza
+from apps.GestionServiciosyReserva.models.especie import Especie
+from apps.GestionServiciosyReserva.models.raza import Raza
 from apps.AutenticacionySeguridad.models import Perfil, Rol
 
 class MascotaSelector:

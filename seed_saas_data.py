@@ -13,6 +13,8 @@ from apps.AutenticacionySeguridad.models import (
     Rol, User, Perfil, Veterinaria, PlanSuscripcion, Suscripcion,
     GrupoUsuario, ComponenteSistema, GrupoPermisoComponente, UsuarioGrupo
 )
+from apps.GestionServiciosyReserva.models.especie import Especie
+from apps.GestionServiciosyReserva.models.raza import Raza
 
 def reset_sequence(table_name, pk_name):
     with connection.cursor() as cursor:
@@ -30,7 +32,9 @@ def seed():
         ('suscripcion', 'id_suscripcion'),
         ('componente_sistema', 'id_componente'),
         ('grupo_usuario', 'id_grupo'),
-        ('grupo_permiso_componente', 'id_permiso_componente')
+        ('grupo_permiso_componente', 'id_permiso_componente'),
+        ('especie', 'id_especie'),
+        ('raza', 'id_raza')
     ]
     for table, pk in tables:
         try:
@@ -169,6 +173,9 @@ def seed():
         ("CLI_MASCOTAS", "Gestión de Mascotas", "Módulo para administrar las mascotas de los clientes."),
         ("CLI_CATALOGOS", "Catálogos Base", "Módulo para administrar especies, razas, etc."),
         ("SEG_USUARIOS", "Gestión de Usuarios", "Administración interna de personal de la veterinaria."),
+        ("SEG_GRUPO_USUARIO", "Roles y Grupos", "Gestión de roles/grupos de acceso de la veterinaria."),
+        ("SEG_PERMISO_COMPONENTE", "Permisos por Componente", "Asignación de permisos granulares por módulo."),
+        ("SEG_BITACORA", "Bitácora y Seguridad", "Consulta de registros de auditoría del sistema."),
         ("SERV_SERVICIOS", "Catálogo de Servicios", "Catálogo de servicios y precios."),
         ("SERV_CITAS", "Gestión de Citas y Reservas", "Módulo para agendar citas de mascotas."),
     ]
@@ -177,7 +184,7 @@ def seed():
     for cod, nom, desc in comps_data:
         c, _ = ComponenteSistema.objects.get_or_create(
             codigo=cod,
-            defaults={"nombre": nom, "descripcion": desc}
+            defaults={"nombre": nom, "tipo": "MODULO"}
         )
         comps[cod] = c
 
@@ -216,6 +223,20 @@ def seed():
                     "puede_eliminar": el,
                 }
             )
+
+    # 10. Sembrar Especies y Razas (Catálogos)
+    print("Sembrando Catálogos de Especies y Razas...")
+    catalogos_data = [
+        ("Canino", ["Poodle", "Pastor Alemán", "Golden Retriever", "Chihuahua", "Bulldog"]),
+        ("Felino", ["Siamés", "Persa", "Maine Coon", "Bengalí", "Común"]),
+        ("Ave", ["Canario", "Loro", "Perico"]),
+        ("Roedor", ["Hamster", "Cuy", "Conejo"]),
+    ]
+
+    for esp_nom, razas in catalogos_data:
+        especie, _ = Especie.objects.get_or_create(nombre=esp_nom)
+        for raza_nom in razas:
+            Raza.objects.get_or_create(nombre=raza_nom, especie=especie)
 
     print("Carga de datos SaaS finalizada con éxito.")
 

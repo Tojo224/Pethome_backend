@@ -14,6 +14,12 @@ from .views import (
     ServicioListCreateView,
 )
 from .views.agenda_view import DisponibilidadAgendaView, ValidarConflictoView
+from .views.especie_raza_view import (
+    EspecieListCreateView,
+    EspecieDetailView,
+    RazaListCreateView,
+    RazaDetailView,
+)
 
 urlpatterns = [
     # Categorias
@@ -38,4 +44,10 @@ urlpatterns = [
     # Agenda y Disponibilidad
     path("agenda/", DisponibilidadAgendaView.as_view(), name="agenda-disponibilidad"),
     path("agenda/validar/", ValidarConflictoView.as_view(), name="agenda-validar"),
+
+    # Especies y Razas
+    path("especies/", EspecieListCreateView.as_view(), name="especie-list-create"),
+    path("especies/<int:pk>/", EspecieDetailView.as_view(), name="especie-detail"),
+    path("razas/", RazaListCreateView.as_view(), name="raza-list-create"),
+    path("razas/<int:pk>/", RazaDetailView.as_view(), name="raza-detail"),
 ]
