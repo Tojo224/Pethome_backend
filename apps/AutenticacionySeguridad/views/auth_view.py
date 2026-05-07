@@ -1,3 +1,5 @@
+from django.contrib.auth import login as auth_login
+from django.contrib.auth import logout as auth_logout
 from django.db import transaction
 from django.db.models import Q
 from rest_framework import serializers, status
@@ -212,6 +214,7 @@ class MobileRegisterView(TenantViewMixin, APIView):
             usuario=user,
             nombre=data["nombre"],
             telefono=data.get("telefono", ""),
+            direccion=data.get("direccion", ""),
             estado=True,
         )
 
@@ -377,5 +380,4 @@ class AuthRootView(APIView):
 
     def get(self, request):
         return Response({"message": "Pethome SaaS Auth API", "version": "1.1"})
-from django.contrib.auth import login as auth_login
-from django.contrib.auth import logout as auth_logout
+

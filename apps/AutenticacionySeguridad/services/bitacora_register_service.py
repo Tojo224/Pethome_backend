@@ -38,8 +38,16 @@ class BitacoraService:
             if usuario is not None:
                 usuario_id = getattr(usuario, "id_usuario", None)
                 correo_usuario = getattr(usuario, "correo", "")
-                perfil = getattr(usuario, "perfil", None)
-                nombre_usuario = getattr(perfil, "nombre", "") if perfil else ""
+                
+                # Intentar obtener el nombre del perfil, usar correo como respaldo
+                try:
+                    perfil = getattr(usuario, "perfil", None)
+                    nombre_usuario = getattr(perfil, "nombre", "") if perfil else ""
+                except Exception:
+                    nombre_usuario = ""
+                
+                if not nombre_usuario:
+                    nombre_usuario = correo_usuario or f"Usuario {usuario_id}"
 
                 if getattr(usuario, "is_superuser", False):
                     veterinaria_id = None

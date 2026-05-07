@@ -8,7 +8,7 @@ from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 def _get_key_list() -> List[str]:
     raw_keys: Optional[Any] = getattr(settings, "BITACORA_SECRET_KEYS", None)
-    if raw_keys is None:
+    if not raw_keys:
         raw_keys = getattr(settings, "BITACORA_SECRET_KEY", None)
 
     if isinstance(raw_keys, (list, tuple)):

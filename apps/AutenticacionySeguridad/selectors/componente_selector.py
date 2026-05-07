@@ -14,7 +14,14 @@ class ComponenteSelector:
         if user.is_superuser:
             componentes = ComponenteSistema.objects.filter(
                 estado=True, plataforma__in=[plataforma, "AMBOS"]
+            ).exclude(
+                codigo__startswith="CLI_"
+            ).exclude(
+                codigo__startswith="SERV_"
+            ).exclude(
+                codigo__startswith="INV_"
             ).order_by("orden")
+            
             return [
                 {
                     "id_componente": c.id_componente,
