@@ -30,6 +30,7 @@ class CitaListCreateView(TenantViewMixin, APIView):
     rbac_component = "SERV_CITAS"
 
     def get_queryset(self, request):
+        CitaService.cancelar_vencidas_por_tenant(self.get_tenant_id())
         return CitaSelector.get_citas_by_tenant(
             veterinaria_id=self.get_tenant_id(),
             user=request.user
@@ -106,6 +107,7 @@ class CitaDetailView(TenantViewMixin, APIView):
     rbac_component = "SERV_CITAS"
 
     def get_object(self, request, pk):
+        CitaService.cancelar_vencidas_por_tenant(self.get_tenant_id())
         return CitaSelector.get_cita_detail(pk, self.get_tenant_id())
 
     @extend_schema(
@@ -222,6 +224,7 @@ class CitaEstadoUpdateView(TenantViewMixin, APIView):
     rbac_component = "SERV_CITAS"
 
     def get_object(self, request, pk):
+        CitaService.cancelar_vencidas_por_tenant(self.get_tenant_id())
         return CitaSelector.get_cita_detail(pk, self.get_tenant_id())
 
     @extend_schema(
