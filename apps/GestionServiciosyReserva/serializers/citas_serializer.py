@@ -242,15 +242,40 @@ class CitaSerializer(serializers.ModelSerializer):
 class CitaEstadoUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cita
-        fields = ["estado", "motivo_cancelacion", "fecha_confirmacion", "hora_fin"]
+        fields = [
+            "estado",
+            "motivo_cancelacion",
+            "fecha_confirmacion",
+            "fecha_programada",
+            "hora_inicio",
+            "hora_fin",
+        ]
 
     def validate(self, data):
-        estado = data.get("estado", getattr(self.instance, "estado", None))
+        estado_actual = getattr(self.instance, "estado", None)
+        estado = data.get("estado", estado_actual)
         motivo_cancelacion = data.get("motivo_cancelacion")
+        fecha_programada = data.get("fecha_programada", getattr(self.instance, "fecha_programada", None))
+        hora_inicio = data.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
 
         if estado == Cita.EstadoChoices.CANCELADA and not (motivo_cancelacion or "").strip():
             raise serializers.ValidationError(
                 {"Debes indicar el motivo de cancelación."}
             )
+
+        # No permitir cambiar citas completadas/canceladas a otros estados desde móvil cliente.
+        if estado_actual in {Cita.EstadoChoices.CANCELADA, Cita.EstadoChoices.COMPLETADA} and estado != estado_actual:
+            raise serializers.ValidationError(
+                {"estado": "No se puede modificar una reserva cancelada o completada."}
+            )
+
+        # Si se reprograma (fecha/hora), debe ser futura.
+        if fecha_programada and hora_inicio:
+            dt = timezone.datetime.combine(fecha_programada, hora_inicio)
+            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+            if dt <= timezone.localtime():
+                raise serializers.ValidationError(
+                    {"fecha_programada": "La nueva fecha y hora deben ser futuras."}
+                )
 
         return data

@@ -184,13 +184,24 @@ class CitaDetailView(TenantViewMixin, APIView):
         if not cita:
             return Response({"error": "Cita no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-        nuevo_estado = "CANCELADA" if cita.estado != "CANCELADA" else "PENDIENTE"
-        CitaService.actualizar_estado(cita, nuevo_estado)
+        if cita.estado == "CANCELADA":
+            return Response(
+                {"message": "La reserva ya está cancelada.", "estado": cita.estado},
+                status=status.HTTP_200_OK,
+            )
 
-        accion = BitacoraAccion.RESERVA_ACTIVADA if cita.estado == "PENDIENTE" else BitacoraAccion.RESERVA_CANCELADA
+        if cita.estado == "COMPLETADA":
+            return Response(
+                {"error": "No se puede cancelar una reserva completada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        motivo = request.data.get("motivo_cancelacion") if hasattr(request, "data") else None
+        CitaService.actualizar_estado(cita, "CANCELADA", motivo_cancelacion=motivo)
+
         self.registrar_bitacora(
-            accion=accion,
-            descripcion=f"La reserva #{pk} ha sido {'reactivada' if cita.estado == 'PENDIENTE' else 'cancelada'}.",
+            accion=BitacoraAccion.RESERVA_CANCELADA,
+            descripcion=f"La reserva #{pk} ha sido cancelada.",
             modulo=BitacoraModulo.AGENDA_DISPONIBILIDAD,
             entidad_id=pk,
             resultado=BitacoraResultado.EXITO,
@@ -199,7 +210,7 @@ class CitaDetailView(TenantViewMixin, APIView):
 
         return Response(
             {
-                "message": "Estado de la cita actualizado correctamente",
+                "message": "Reserva cancelada correctamente",
                 "estado": cita.estado,
             },
             status=status.HTTP_200_OK,
@@ -222,6 +233,12 @@ class CitaEstadoUpdateView(TenantViewMixin, APIView):
         cita = self.get_object(request, pk)
         if not cita:
             return Response({"error": "Cita no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        if cita.estado in {"CANCELADA", "COMPLETADA"}:
+            return Response(
+                {"error": "No se puede modificar una reserva cancelada o completada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         serializer = CitaEstadoUpdateSerializer(cita, data=request.data, partial=True)
         try:
