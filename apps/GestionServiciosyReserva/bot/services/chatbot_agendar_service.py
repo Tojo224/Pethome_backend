@@ -1,4 +1,5 @@
-﻿from datetime import datetime, timedelta
+from datetime import datetime, timedelta
+import re
 
 from django.utils import timezone
 
@@ -21,7 +22,44 @@ class ChatbotAgendarService:
     @staticmethod
     def _normalizar_direccion(direccion):
         direccion_limpia = str(direccion or "").strip()
+        coordenadas = re.search(
+            r"(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)",
+            direccion_limpia,
+        )
+        if coordenadas:
+            return f"{coordenadas.group(1)}, {coordenadas.group(2)}"
         return direccion_limpia or None
+
+    @staticmethod
+    def _direccion_compartida_desde_contexto(contexto):
+        if not isinstance(contexto, dict):
+            return None
+
+        direccion = ChatbotAgendarService._normalizar_direccion(
+            contexto.get("direccion_cita_compartida")
+        )
+        if direccion:
+            return direccion
+
+        ubicacion = contexto.get("ubicacion_actual")
+        if isinstance(ubicacion, dict):
+            direccion = ChatbotAgendarService._normalizar_direccion(
+                ubicacion.get("direccion")
+            )
+            if direccion:
+                return direccion
+
+            latitud = ubicacion.get("latitud") or ubicacion.get("latitude")
+            longitud = ubicacion.get("longitud") or ubicacion.get("longitude")
+            if latitud is not None and longitud is not None:
+                return f"{latitud}, {longitud}"
+
+        return None
+
+    @staticmethod
+    def _mensaje_es_ubicacion_compartida(mensaje):
+        texto = TextMatcher.normalize(mensaje)
+        return "comparto mi ubicacion" in texto or "ubicacion actual" in texto
 
     @staticmethod
     def _aplicar_reglas_direccion_por_modalidad(datos):
@@ -311,7 +349,10 @@ class ChatbotAgendarService:
         if not datos.get("modalidad"):
             faltan.append("modalidad")
         elif str(datos.get("modalidad") or "").strip().upper() == "DOMICILIO":
-            if not ChatbotAgendarService._normalizar_direccion(datos.get("direccion_cita")):
+            tiene_direccion = ChatbotAgendarService._normalizar_direccion(
+                datos.get("direccion_cita")
+            )
+            if not tiene_direccion:
                 faltan.append("direccion_cita")
 
         interpretacion["datos"] = datos
@@ -319,7 +360,10 @@ class ChatbotAgendarService:
         return interpretacion
 
     @staticmethod
-    def _merge_interpretaciones_agendamiento(interpretacion_anterior, interpretacion_nueva):
+    def _merge_interpretaciones_agendamiento(
+        interpretacion_anterior,
+        interpretacion_nueva,
+    ):
         datos_anteriores = interpretacion_anterior.get("datos", {}) or {}
         datos_nuevos = interpretacion_nueva.get("datos", {}) or {}
 
@@ -343,7 +387,7 @@ class ChatbotAgendarService:
         )
 
     @staticmethod
-    def _completar_faltantes_desde_mensaje(interpretacion, mensaje, faltan):
+    def _completar_faltantes_desde_mensaje(interpretacion, mensaje, faltan, contexto=None):
         interpretacion_final = dict(interpretacion or {})
         datos = dict(interpretacion_final.get("datos", {}) or {})
 
@@ -358,7 +402,16 @@ class ChatbotAgendarService:
                 datos["modalidad"] = modalidad
 
         if len(faltan) == 1 and "direccion_cita" in faltan and mensaje_limpio:
-            datos["direccion_cita"] = mensaje_limpio
+            direccion_compartida = ChatbotAgendarService._direccion_compartida_desde_contexto(
+                contexto
+            )
+            if (
+                direccion_compartida
+                and ChatbotAgendarService._mensaje_es_ubicacion_compartida(mensaje_limpio)
+            ):
+                datos["direccion_cita"] = direccion_compartida
+            else:
+                datos["direccion_cita"] = mensaje_limpio
 
         if len(faltan) == 1 and "mascota_nombre" in faltan and mensaje_limpio:
             datos["mascota_nombre"] = mensaje_limpio
@@ -537,7 +590,6 @@ class ChatbotAgendarService:
         direccion_cita = ChatbotAgendarService._normalizar_direccion(
             datos.get("direccion_cita")
         )
-
         if modalidad == "CLINICA":
             direccion_cita = None
 
@@ -844,6 +896,7 @@ class ChatbotAgendarService:
             interpretacion_anterior,
             mensaje,
             faltan_contexto,
+            contexto,
         )
 
         if not interpretacion_directa.get("faltan"):
