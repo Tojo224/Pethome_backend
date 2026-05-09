@@ -74,8 +74,16 @@ class ChatbotPromptBuilder:
             - Si el usuario dice "a domicilio", "en mi casa" o similar, usa DOMICILIO.
             - Si faltan datos importantes, colócalos en "faltan".
             - Para AGENDAR_CITA normalmente se necesitan: mascota_nombre, servicio_nombre, fecha_programada, hora_inicio y modalidad.
-            - Para REPROGRAMAR_CITA normalmente se necesitan: fecha_programada y hora_inicio.
-            - Para CANCELAR_CITA normalmente puede necesitarse motivo_cancelacion si el usuario lo menciona.
+            - Para REPROGRAMAR_CITA extrae, si aparecen en el mensaje: fecha_texto, fecha_programada, hora_inicio, mascota_nombre y servicio_nombre.
+            - Para REPROGRAMAR_CITA, fecha_programada y hora_inicio representan la NUEVA fecha/hora solicitada.
+            - Para REPROGRAMAR_CITA no inventes id_cita.
+            - Si el usuario dice "mañana", calcula fecha_programada según la fecha actual del sistema.
+            - Si el usuario indica una fecha pasada para reprogramar, usa:
+              "fecha_programada": null, "fecha_invalida": true, "motivo_fecha_invalida": "No se puede reprogramar en fechas pasadas."
+            - Si no hay fecha u hora nueva en el mensaje, deja fecha_programada y hora_inicio en null.
+            - Para CANCELAR_CITA extrae, si aparecen en el mensaje: motivo_cancelacion, fecha_texto, fecha_programada, hora_inicio, mascota_nombre y servicio_nombre.
+            - Para CANCELAR_CITA no inventes id_cita.
+            - Si el usuario indica el motivo con frases como "porque...", guarda ese texto en motivo_cancelacion.
             - Si el mensaje no tiene relación con citas veterinarias, usa DESCONOCIDA.
             - La respuesta debe ser breve y debe indicar que se verificará la información antes de confirmar cualquier acción.
             """
