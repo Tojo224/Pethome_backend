@@ -1,8 +1,24 @@
+import unicodedata
+
 from rest_framework import serializers
 from ..models import PrecioServicio
 
 class PrecioServicioSerializer(serializers.ModelSerializer):
     servicio_nombre = serializers.CharField(source="servicio.nombre", read_only=True)
+
+    def validate_modalidad(self, value):
+        if value is None:
+            return value
+
+        normalized = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+        normalized = normalized.strip().upper()
+
+        if "DOMICILIO" in normalized:
+            return "DOMICILIO"
+        if "CONSULTA" in normalized or "CLINICA" in normalized or "EN CLINICA" in normalized:
+            return "CLINICA"
+
+        raise serializers.ValidationError("La modalidad debe ser Clínica o Domicilio.")
 
     def _tenant_id(self):
         request = self.context.get("request")
