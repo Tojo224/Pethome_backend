@@ -35,6 +35,45 @@ class HistorialClinicoListCreateView(TenantViewMixin, APIView):
         )
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=["Clinica"],
+        request=HistorialClinicoSerializer,
+        responses={201: HistorialClinicoSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
+        description="Crea un historial clínico para una mascota del tenant actual."
+    )
+    def post(self, request):
+        vet_id = self.get_tenant_id()
+        serializer = HistorialClinicoSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        mascota = serializer.validated_data.get("mascota")
+        mascota_autorizada = MascotaSelector.get_mascota_detail(mascota.pk, vet_id, user=request.user)
+        if not mascota_autorizada:
+            self.registrar_bitacora(
+                accion=BitacoraAccion.ACCESO_DENEGADO,
+                descripcion=f"Intento de crear historial para mascota ID {mascota.pk} fuera del tenant.",
+                modulo=BitacoraModulo.CLINICA,
+                resultado=BitacoraResultado.FALLO,
+            )
+            return Response(
+                {"error": "Mascota no encontrada en su veterinaria."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        historial = serializer.save()
+
+        self.registrar_bitacora(
+            accion=BitacoraAccion.HISTORIAL_CLINICO_CREADO,
+            descripcion=f"Historial clínico creado para la mascota '{mascota_autorizada.nombre}'.",
+            modulo=BitacoraModulo.CLINICA,
+            entidad_id=historial.pk,
+            resultado=BitacoraResultado.EXITO,
+        )
+
+        return Response(HistorialClinicoSerializer(historial).data, status=status.HTTP_201_CREATED)
+
 class HistorialClinicoPorMascotaView(TenantViewMixin, APIView):
     permission_classes = [IsAuthenticated, HasComponentPermission]
     rbac_component = "CLI_HISTORIALES"

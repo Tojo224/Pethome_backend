@@ -278,6 +278,13 @@ class BaseAccessSeedService:
                 # sin abrir edición administrativa de otros clientes.
                 if (group.rol_base or "").upper() == cls.ROLE_CLIENT and code == "MOVIL_MI_PERFIL":
                     defaults["puede_editar"] = True
+
+                # Cliente puede gestionar sus reservas desde móvil.
+                # Se habilita editar/ejecutar en el menú para compatibilidad de UI;
+                # las acciones reales siguen protegidas por SERV_CITAS + tenant.
+                if (group.rol_base or "").upper() == cls.ROLE_CLIENT and code == "MOVIL_MIS_RESERVAS":
+                    defaults["puede_editar"] = True
+                    defaults["puede_ejecutar"] = True
                 _, was_created = GrupoPermisoComponente.objects.update_or_create(
                     grupo=group,
                     componente=component,

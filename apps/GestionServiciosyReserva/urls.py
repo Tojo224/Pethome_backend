@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 
 from .views import (
     CategoriaServicioDetailView,
@@ -20,6 +20,7 @@ from .views.especie_raza_view import (
     RazaListCreateView,
     RazaDetailView,
 )
+from .views.precio_servicio_especifico_view import PrecioServicioEspecificoView
 
 urlpatterns = [
     # Categorias
@@ -50,4 +51,14 @@ urlpatterns = [
     path("especies/<int:pk>/", EspecieDetailView.as_view(), name="especie-detail"),
     path("razas/", RazaListCreateView.as_view(), name="raza-list-create"),
     path("razas/<int:pk>/", RazaDetailView.as_view(), name="raza-detail"),
+
+    #ChatBot
+    path("bot/", include("apps.GestionServiciosyReserva.bot.urls")),
+
+    #Precio de un servicio especifico
+    path(
+        "precio-servicio-especifico/<int:id_servicio>/",
+        PrecioServicioEspecificoView.as_view(),
+        name="precio-servicio-especifico",
+    ),
 ]

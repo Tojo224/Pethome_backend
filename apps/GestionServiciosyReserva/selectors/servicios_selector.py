@@ -27,6 +27,11 @@ class PrecioServicioSelector:
         return PrecioServicio.objects.filter(veterinaria_id=veterinaria_id).select_related("servicio")
 
 class CitaSelector:
+    ESTADOS_ACTIVOS = [
+        Cita.EstadoChoices.PENDIENTE,
+        Cita.EstadoChoices.CONFIRMADA,
+    ]
+
     @staticmethod
     def get_citas_by_tenant(veterinaria_id, user=None):
         queryset = Cita.objects.filter(veterinaria_id=veterinaria_id).select_related(
@@ -40,8 +45,9 @@ class CitaSelector:
     def get_citas_by_fecha(veterinaria_id, fecha):
         return Cita.objects.filter(
             veterinaria_id=veterinaria_id,
-            fecha_programada=fecha
-        ).exclude(estado="CANCELADA").select_related("mascota", "servicio", "usuario")
+            fecha_programada=fecha,
+            estado__in=CitaSelector.ESTADOS_ACTIVOS,
+        ).select_related("mascota", "servicio", "usuario")
 
     @staticmethod
     def verificar_conflicto_horario(veterinaria_id, fecha, hora_inicio, hora_fin, excluir_cita_id=None):
@@ -51,8 +57,9 @@ class CitaSelector:
         """
         queryset = Cita.objects.filter(
             veterinaria_id=veterinaria_id,
-            fecha_programada=fecha
-        ).exclude(estado="CANCELADA")
+            fecha_programada=fecha,
+            estado__in=CitaSelector.ESTADOS_ACTIVOS,
+        )
 
         if excluir_cita_id:
             queryset = queryset.exclude(id_cita=excluir_cita_id)

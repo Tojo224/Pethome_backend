@@ -15,6 +15,7 @@ from datetime import timedelta
 
 import dj_database_url
 from decouple import config
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -187,3 +188,9 @@ BITACORA_SECRET_KEYS = [
 ]
 if not BITACORA_SECRET_KEYS:
     BITACORA_SECRET_KEY = config("BITACORA_SECRET_KEY", default="")
+
+#OPENROUTER
+OPENROUTER_API_KEY = config("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL = config("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+OPENROUTER_SITE_URL = config("OPENROUTER_SITE_URL", "http://localhost:8000")
+OPENROUTER_SITE_NAME = config("OPENROUTER_SITE_NAME", "PetHome Chatbot")

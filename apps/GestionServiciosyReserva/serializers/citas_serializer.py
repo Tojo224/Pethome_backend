@@ -1,6 +1,7 @@
+from datetime import datetime, timedelta
+
 from django.utils import timezone
 from rest_framework import serializers
-from datetime import datetime, timedelta
 
 from apps.AutenticacionySeguridad.enums.roles import RoleEnum
 
@@ -51,7 +52,7 @@ class CitaSerializer(serializers.ModelSerializer):
             "precio",
             "fecha_generada",
             "fecha_confirmacion",
-            "hora_fin",  # se calcula automáticamente
+            "hora_fin",
             "estado",
             "motivo_cancelacion",
         ]
@@ -79,12 +80,8 @@ class CitaSerializer(serializers.ModelSerializer):
         )
         hora_inicio = data.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
 
-        # ---------------- VALIDACIONES TENANT ----------------
-
         if tenant_id is None:
-            raise serializers.ValidationError(
-                "No se pudo resolver el tenant activo."
-            )
+            raise serializers.ValidationError("No se pudo resolver el tenant activo.")
 
         if mascota and mascota.veterinaria_id != tenant_id:
             raise serializers.ValidationError(
@@ -100,8 +97,6 @@ class CitaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"precio_servicio": "El precio no pertenece a la veterinaria actual."}
             )
-
-        # ---------------- VALIDACIONES EXISTENTES ----------------
 
         if (
             mascota
@@ -120,12 +115,16 @@ class CitaSerializer(serializers.ModelSerializer):
 
         if precio_servicio and not precio_servicio.estado:
             raise serializers.ValidationError(
-                {"precio_servicio": "El precio seleccionado no está disponible."}
+                {"precio_servicio": "El precio seleccionado no esta disponible."}
             )
 
         if servicio and precio_servicio and precio_servicio.servicio_id != servicio.id_servicio:
             raise serializers.ValidationError(
-                {"precio_servicio": "El precio seleccionado no pertenece al servicio indicado."}
+                {
+                    "precio_servicio": (
+                        "El precio seleccionado no pertenece al servicio indicado."
+                    )
+                }
             )
 
         if precio_servicio and modalidad:
@@ -150,12 +149,10 @@ class CitaSerializer(serializers.ModelSerializer):
                     {"fecha_programada": "La fecha y hora de la cita deben ser futuras."}
                 )
 
-        # ---------------- VALIDACIÓN DE MODALIDAD ----------------
-
         if modalidad == Cita.ModalidadChoices.DOMICILIO:
             if servicio and not servicio.disponible_domicilio:
                 raise serializers.ValidationError(
-                    {"servicio": "El servicio seleccionado no está disponible a domicilio."}
+                    {"servicio": "El servicio seleccionado no esta disponible a domicilio."}
                 )
 
             direccion = (direccion_cita or "").strip()
@@ -165,41 +162,45 @@ class CitaSerializer(serializers.ModelSerializer):
 
             if not direccion:
                 raise serializers.ValidationError(
-                    {"direccion_cita": "La dirección es obligatoria para citas a domicilio."}
+                    {
+                        "direccion_cita": "La direccion es obligatoria para citas a domicilio."
+                    }
                 )
 
-            data["direccion_cita"] = direccion
+            data["direccion_cita"] = direccion or None
 
         if modalidad == Cita.ModalidadChoices.CLINICA:
             data["direccion_cita"] = None
 
-        # ---------------- VALIDACIÓN DE HORARIO ----------------
-
-        HORA_APERTURA = 8
-        HORA_CIERRE = 18
+        hora_apertura = 8
+        hora_cierre = 18
 
         if hora_inicio:
-            if hora_inicio.hour < HORA_APERTURA or hora_inicio.hour >= HORA_CIERRE:
-                raise serializers.ValidationError({
-                    "hora_inicio": f"Horario permitido: {HORA_APERTURA}:00 - {HORA_CIERRE}:00"
-                })
-
-        # ---------------- VALIDACIÓN DE CHOQUES ----------------
+            if hora_inicio.hour < hora_apertura or hora_inicio.hour >= hora_cierre:
+                raise serializers.ValidationError(
+                    {
+                        "hora_inicio": (
+                            f"Horario permitido: {hora_apertura}:00 - {hora_cierre}:00"
+                        )
+                    }
+                )
 
         if fecha_programada and hora_inicio:
-
             inicio = datetime.combine(fecha_programada, hora_inicio)
 
-            # calcular hora_fin automáticamente
             if servicio and servicio.duracion_estimada:
                 fin = inicio + timedelta(minutes=servicio.duracion_estimada)
                 data["hora_fin"] = fin.time()
             else:
                 hora_fin = data.get("hora_fin") or getattr(self.instance, "hora_fin", None)
                 if not hora_fin:
-                    raise serializers.ValidationError({
-                        "hora_fin": "Debe especificar hora_fin o configurar duración del servicio"
-                    })
+                    raise serializers.ValidationError(
+                        {
+                            "hora_fin": (
+                                "Debe especificar hora_fin o configurar duracion del servicio"
+                            )
+                        }
+                    )
                 fin = datetime.combine(fecha_programada, hora_fin)
 
             if inicio >= fin:
@@ -207,7 +208,6 @@ class CitaSerializer(serializers.ModelSerializer):
                     {"hora_inicio": "La hora fin debe ser mayor a la hora inicio"}
                 )
 
-            #  filtrar por modalidad 
             citas = Cita.objects.filter(
                 fecha_programada=fecha_programada,
                 modalidad=modalidad,
@@ -218,7 +218,6 @@ class CitaSerializer(serializers.ModelSerializer):
                 ],
             )
 
-            # excluir si es edición
             if self.instance:
                 citas = citas.exclude(id_cita=self.instance.id_cita)
 
@@ -227,9 +226,9 @@ class CitaSerializer(serializers.ModelSerializer):
                 fin_db = datetime.combine(cita.fecha_programada, cita.hora_fin)
 
                 if inicio < fin_db and fin > inicio_db:
-                    raise serializers.ValidationError({
-                         "Ya existe una cita en ese horario para esta modalidad"
-                    })
+                    raise serializers.ValidationError(
+                        {"detail": "Ya existe una cita en ese horario para esta modalidad."}
+                    )
 
         return data
 
@@ -242,15 +241,44 @@ class CitaSerializer(serializers.ModelSerializer):
 class CitaEstadoUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cita
-        fields = ["estado", "motivo_cancelacion", "fecha_confirmacion", "hora_fin"]
+        fields = [
+            "estado",
+            "motivo_cancelacion",
+            "fecha_confirmacion",
+            "fecha_programada",
+            "hora_inicio",
+            "hora_fin",
+        ]
 
     def validate(self, data):
-        estado = data.get("estado", getattr(self.instance, "estado", None))
+        estado_actual = getattr(self.instance, "estado", None)
+        estado = data.get("estado", estado_actual)
         motivo_cancelacion = data.get("motivo_cancelacion")
+        fecha_programada = data.get(
+            "fecha_programada",
+            getattr(self.instance, "fecha_programada", None),
+        )
+        hora_inicio = data.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
 
         if estado == Cita.EstadoChoices.CANCELADA and not (motivo_cancelacion or "").strip():
             raise serializers.ValidationError(
-                {"Debes indicar el motivo de cancelación."}
+                {"detail": "Debes indicar el motivo de cancelacion."}
             )
+
+        if (
+            estado_actual in {Cita.EstadoChoices.CANCELADA, Cita.EstadoChoices.COMPLETADA}
+            and estado != estado_actual
+        ):
+            raise serializers.ValidationError(
+                {"estado": "No se puede modificar una reserva cancelada o completada."}
+            )
+
+        if fecha_programada and hora_inicio:
+            dt = timezone.datetime.combine(fecha_programada, hora_inicio)
+            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+            if dt <= timezone.localtime():
+                raise serializers.ValidationError(
+                    {"fecha_programada": "La nueva fecha y hora deben ser futuras."}
+                )
 
         return data
