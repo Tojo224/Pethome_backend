@@ -1,0 +1,450 @@
+@startuml
+hide circle
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+
+entity "backup_restore" as "AutenticacionySeguridad.BackupRestore" {
+  id_backup_restore : AutoField NOT NULL <<PK>>
+  tipo : CharField NOT NULL
+  fecha_hora : DateTimeField NOT NULL
+  ruta_archivo : CharField NOT NULL
+  proveedor_almacenamiento : CharField NULL
+  estado : CharField NOT NULL
+  hash_archivo : CharField NULL
+  motivo : TextField NULL
+  id_usuario : ForeignKey NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "bitacora" as "AutenticacionySeguridad.Bitacora" {
+  id_bitacora : AutoField NOT NULL <<PK>>
+  id_veterinaria : ForeignKey NULL
+  fecha_hora : DateTimeField NOT NULL
+  payload : BinaryField NOT NULL
+}
+
+entity "componente_sistema" as "AutenticacionySeguridad.ComponenteSistema" {
+  id_componente : AutoField NOT NULL <<PK>>
+  codigo : CharField NOT NULL <<UQ>>
+  nombre : CharField NOT NULL
+  tipo : CharField NOT NULL
+  modulo : CharField NULL
+  ruta : CharField NULL
+  plataforma : CharField NOT NULL
+  id_padre : ForeignKey NULL
+  orden : IntegerField NOT NULL
+  estado : BooleanField NOT NULL
+}
+
+entity "grupo_permiso_componente" as "AutenticacionySeguridad.GrupoPermisoComponente" {
+  id_permiso_componente : AutoField NOT NULL <<PK>>
+  puede_ver : BooleanField NOT NULL
+  puede_crear : BooleanField NOT NULL
+  puede_editar : BooleanField NOT NULL
+  puede_eliminar : BooleanField NOT NULL
+  puede_exportar : BooleanField NOT NULL
+  puede_ejecutar : BooleanField NOT NULL
+  estado : BooleanField NOT NULL
+  id_grupo : ForeignKey NOT NULL
+  id_componente : ForeignKey NOT NULL
+}
+
+entity "grupo_usuario" as "AutenticacionySeguridad.GrupoUsuario" {
+  id_grupo : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL
+  descripcion : TextField NULL
+  estado : BooleanField NOT NULL
+  es_base : BooleanField NOT NULL
+  rol_base : CharField NULL
+  fecha_creacion : DateTimeField NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "perfil" as "AutenticacionySeguridad.Perfil" {
+  id_perfil : AutoField NOT NULL <<PK>>
+  id_usuario : OneToOneField NOT NULL <<UQ>>
+  nombre : CharField NOT NULL
+  telefono : CharField NULL
+  direccion : CharField NULL
+  estado : BooleanField NOT NULL
+  fecha_creacion : DateTimeField NOT NULL
+}
+
+entity "plan_suscripcion" as "AutenticacionySeguridad.PlanSuscripcion" {
+  id_plan : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL
+  descripcion : TextField NULL
+  precio_mensual : DecimalField NOT NULL
+  limite_usuarios : IntegerField NOT NULL
+  limite_mascotas : IntegerField NOT NULL
+  permite_app_movil : BooleanField NOT NULL
+  permite_reportes : BooleanField NOT NULL
+  permite_backup : BooleanField NOT NULL
+  estado : BooleanField NOT NULL
+}
+
+entity "roles" as "AutenticacionySeguridad.Rol" {
+  id_rol : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL <<UQ>>
+  descripcion : TextField NULL
+}
+
+entity "suscripcion" as "AutenticacionySeguridad.Suscripcion" {
+  id_suscripcion : AutoField NOT NULL <<PK>>
+  fecha_inicio : DateField NOT NULL
+  fecha_fin : DateField NULL
+  estado_suscripcion : CharField NOT NULL
+  renovacion_automatica : BooleanField NOT NULL
+  fecha_creacion : DateTimeField NOT NULL
+  fecha_actualizacion : DateTimeField NOT NULL
+  metodo_pago : CharField NULL
+  fecha_pago : DateTimeField NULL
+  id_veterinaria : ForeignKey NOT NULL
+  id_plan : ForeignKey NOT NULL
+}
+
+entity "usuarios" as "AutenticacionySeguridad.User" {
+  password : CharField NOT NULL
+  last_login : DateTimeField NULL
+  is_superuser : BooleanField NOT NULL
+  id_usuario : AutoField NOT NULL <<PK>>
+  correo : CharField NOT NULL <<UQ>>
+  id_rol : ForeignKey NOT NULL
+  id_veterinaria : ForeignKey NULL
+  is_active : BooleanField NOT NULL
+  is_staff : BooleanField NOT NULL
+  date_joined : DateTimeField NOT NULL
+  groups : ManyToMany (custom through)
+  user_permissions : ManyToMany (custom through)
+}
+
+entity "usuario_grupo" as "AutenticacionySeguridad.UsuarioGrupo" {
+  id_usuario_grupo : AutoField NOT NULL <<PK>>
+  fecha_asignacion : DateTimeField NOT NULL
+  estado : BooleanField NOT NULL
+  id_usuario : ForeignKey NOT NULL
+  id_grupo : ForeignKey NOT NULL
+}
+
+entity "veterinaria" as "AutenticacionySeguridad.Veterinaria" {
+  id_veterinaria : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL
+  slug : SlugField NOT NULL <<UQ>>
+  nit : CharField NULL
+  correo : CharField NULL
+  telefono : CharField NULL
+  direccion : TextField NULL
+  logo : CharField NULL
+  estado : BooleanField NOT NULL
+  permite_auto_registro_clientes : BooleanField NOT NULL
+  fecha_creacion : DateTimeField NOT NULL
+}
+
+entity "mascota" as "GestionClientesyMascotas.Mascota" {
+  id_mascota : AutoField NOT NULL <<PK>>
+  id_usuario : ForeignKey NOT NULL
+  id_especie : ForeignKey NOT NULL
+  id_raza : ForeignKey NULL
+  id_veterinaria : ForeignKey NOT NULL
+  nombre : CharField NOT NULL
+  color : CharField NULL
+  sexo : CharField NULL
+  fecha_nac : DateField NULL
+  tamano : CharField NULL
+  peso : DecimalField NULL
+  foto : CharField NULL
+  alergias : TextField NULL
+  notas_generales : TextField NULL
+  fecha_registro : DateTimeField NOT NULL
+  estado : BooleanField NOT NULL
+}
+
+entity "categoria_producto" as "GestionInventarioProveedores.CategoriaProducto" {
+  id_categoria_producto : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL <<UQ>>
+  descripcion : TextField NULL
+  estado : BooleanField NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "producto" as "GestionInventarioProveedores.Producto" {
+  id_producto : AutoField NOT NULL <<PK>>
+  id_categoria_producto : ForeignKey NOT NULL
+  id_proveedor : ForeignKey NULL
+  nombre : CharField NOT NULL
+  precio_compra : DecimalField NULL
+  precio_venta : DecimalField NULL
+  unidad_medida : CharField NULL
+  estado : BooleanField NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "proveedor" as "GestionInventarioProveedores.Proveedor" {
+  id_proveedor : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL
+  contacto : CharField NULL
+  telefono : CharField NULL
+  ubicacion : TextField NULL
+  estado : BooleanField NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "categorias_servicio" as "GestionServiciosyReserva.CategoriaServicio" {
+  id_categoria : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL <<UQ>>
+  descripcion : TextField NULL
+  estado : BooleanField NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "cita" as "GestionServiciosyReserva.Cita" {
+  id_cita : AutoField NOT NULL <<PK>>
+  id_usuario : ForeignKey NOT NULL
+  id_mascota : ForeignKey NOT NULL
+  id_servicio : ForeignKey NOT NULL
+  id_precio_servicio : ForeignKey NOT NULL
+  fecha_generada : DateTimeField NOT NULL
+  fecha_confirmacion : DateTimeField NULL
+  fecha_programada : DateField NOT NULL
+  hora_inicio : TimeField NOT NULL
+  hora_fin : TimeField NULL
+  modalidad : CharField NOT NULL
+  direccion_cita : TextField NULL
+  descripcion : TextField NULL
+  estado : CharField NOT NULL
+  motivo_cancelacion : TextField NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "especie" as "GestionServiciosyReserva.Especie" {
+  id_especie : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL <<UQ>>
+}
+
+entity "precios_servicio" as "GestionServiciosyReserva.PrecioServicio" {
+  id_precio : AutoField NOT NULL <<PK>>
+  servicio_id : ForeignKey NOT NULL
+  variacion : CharField NOT NULL
+  modalidad : CharField NULL
+  precio : DecimalField NOT NULL
+  descripcion : TextField NULL
+  estado : BooleanField NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "raza" as "GestionServiciosyReserva.Raza" {
+  id_raza : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL
+  id_especie : ForeignKey NOT NULL
+}
+
+entity "servicios" as "GestionServiciosyReserva.Servicio" {
+  id_servicio : AutoField NOT NULL <<PK>>
+  nombre : CharField NOT NULL <<UQ>>
+  descripcion : TextField NULL
+  id_categoria : ForeignKey NOT NULL
+  duracion_estimada : IntegerField NULL
+  disponible_domicilio : BooleanField NOT NULL
+  estado : BooleanField NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "archivo_clinico" as "GestionarClinicaVeterinaria.ArchivoClinico" {
+  id_archivo_clinico : AutoField NOT NULL <<PK>>
+  id_consulta_clinica : ForeignKey NOT NULL
+  nombre_archivo : CharField NOT NULL
+  archivo : FileField NOT NULL
+  tipo_archivo : CharField NOT NULL
+  extension : CharField NULL
+  tamano_bytes : BigIntegerField NULL
+  descripcion : TextField NULL
+  fecha_subida : DateTimeField NOT NULL
+  estado : BooleanField NOT NULL
+}
+
+entity "consulta_clinica" as "GestionarClinicaVeterinaria.ConsultaClinica" {
+  id_consulta_clinica : AutoField NOT NULL <<PK>>
+  id_historial_clinico : ForeignKey NOT NULL
+  id_cita : ForeignKey NULL
+  id_usuario_veterinario : ForeignKey NOT NULL
+  motivo_consulta : TextField NOT NULL
+  diagnostico : TextField NULL
+  observaciones : TextField NULL
+  fecha_consulta : DateTimeField NOT NULL
+  peso : DecimalField NULL
+  temperatura : DecimalField NULL
+  frecuencia_cardiaca : PositiveIntegerField NULL
+  frecuencia_respiratoria : PositiveIntegerField NULL
+  proxima_revision : DateTimeField NULL
+  fecha_creacion : DateTimeField NOT NULL
+  fecha_actualizacion : DateTimeField NOT NULL
+  estado : BooleanField NOT NULL
+  id_veterinaria : ForeignKey NOT NULL
+}
+
+entity "detalle_receta" as "GestionarClinicaVeterinaria.DetalleReceta" {
+  id_detalle_receta : AutoField NOT NULL <<PK>>
+  id_receta : ForeignKey NOT NULL
+  id_producto : ForeignKey NULL
+  medicamento : CharField NOT NULL
+  dosis : CharField NOT NULL
+  frecuencia : CharField NOT NULL
+  duracion_dias : PositiveIntegerField NOT NULL
+  indicaciones_adicionales : TextField NULL
+}
+
+entity "historial_clinico" as "GestionarClinicaVeterinaria.HistorialClinico" {
+  id_historial_clinico : AutoField NOT NULL <<PK>>
+  id_mascota : OneToOneField NOT NULL <<UQ>>
+  observaciones_generales : TextField NULL
+  fecha_creacion : DateTimeField NOT NULL
+  fecha_actualizacion : DateTimeField NOT NULL
+  estado : BooleanField NOT NULL
+}
+
+entity "receta" as "GestionarClinicaVeterinaria.Receta" {
+  id_receta : AutoField NOT NULL <<PK>>
+  id_consulta_clinica : OneToOneField NOT NULL <<UQ>>
+  fecha : DateTimeField NOT NULL
+  indicaciones : TextField NULL
+  observacion : TextField NULL
+  estado : BooleanField NOT NULL
+  fecha_creacion : DateTimeField NOT NULL
+  fecha_actualizacion : DateTimeField NOT NULL
+}
+
+entity "tratamiento" as "GestionarClinicaVeterinaria.Tratamiento" {
+  id_tratamiento : AutoField NOT NULL <<PK>>
+  id_consulta_clinica : ForeignKey NOT NULL
+  tipo : CharField NOT NULL
+  descripcion : TextField NOT NULL
+  fecha_ini : DateField NOT NULL
+  fecha_fin : DateField NULL
+  observacion : TextField NULL
+  estado_tratamiento : CharField NOT NULL
+  estado : BooleanField NOT NULL
+  fecha_creacion : DateTimeField NOT NULL
+  fecha_actualizacion : DateTimeField NOT NULL
+}
+
+entity "vacuna_aplicada" as "GestionarClinicaVeterinaria.VacunaAplicada" {
+  id_vacuna_aplicada : AutoField NOT NULL <<PK>>
+  id_consulta_clinica : ForeignKey NOT NULL
+  nombre_vacuna : CharField NOT NULL
+  dosis : CharField NULL
+  fecha_aplicada : DateField NOT NULL
+  fecha_proxima : DateField NULL
+  observacion : TextField NULL
+  lote : CharField NULL
+  fabricante : CharField NULL
+  estado_vacuna : CharField NOT NULL
+  estado : BooleanField NOT NULL
+  fecha_creacion : DateTimeField NOT NULL
+}
+
+entity "django_admin_log" as "admin.LogEntry" {
+  id : AutoField NOT NULL <<PK>>
+  action_time : DateTimeField NOT NULL
+  user_id : ForeignKey NOT NULL
+  content_type_id : ForeignKey NULL
+  object_id : TextField NULL
+  object_repr : CharField NOT NULL
+  action_flag : PositiveSmallIntegerField NOT NULL
+  change_message : TextField NOT NULL
+}
+
+entity "auth_group" as "auth.Group" {
+  id : AutoField NOT NULL <<PK>>
+  name : CharField NOT NULL <<UQ>>
+  permissions : ManyToMany (custom through)
+}
+
+entity "auth_permission" as "auth.Permission" {
+  id : AutoField NOT NULL <<PK>>
+  name : CharField NOT NULL
+  content_type_id : ForeignKey NOT NULL
+  codename : CharField NOT NULL
+}
+
+entity "django_content_type" as "contenttypes.ContentType" {
+  id : AutoField NOT NULL <<PK>>
+  app_label : CharField NOT NULL
+  model : CharField NOT NULL
+}
+
+entity "django_session" as "sessions.Session" {
+  session_key : CharField NOT NULL <<PK>>
+  session_data : TextField NOT NULL
+  expire_date : DateTimeField NOT NULL
+}
+
+entity "token_blacklist_blacklistedtoken" as "token_blacklist.BlacklistedToken" {
+  id : BigAutoField NOT NULL <<PK>>
+  token_id : OneToOneField NOT NULL <<UQ>>
+  blacklisted_at : DateTimeField NOT NULL
+}
+
+entity "token_blacklist_outstandingtoken" as "token_blacklist.OutstandingToken" {
+  id : BigAutoField NOT NULL <<PK>>
+  user_id : ForeignKey NULL
+  jti : CharField NOT NULL <<UQ>>
+  token : TextField NOT NULL
+  created_at : DateTimeField NULL
+  expires_at : DateTimeField NOT NULL
+}
+
+"AutenticacionySeguridad.BackupRestore" }o--|| "AutenticacionySeguridad.User" : usuario / on_delete=PROTECT
+"AutenticacionySeguridad.BackupRestore" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=CASCADE
+"AutenticacionySeguridad.Bitacora" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"AutenticacionySeguridad.ComponenteSistema" }o--|| "AutenticacionySeguridad.ComponenteSistema" : padre / on_delete=SET_NULL
+"AutenticacionySeguridad.GrupoPermisoComponente" }o--|| "AutenticacionySeguridad.GrupoUsuario" : grupo / on_delete=CASCADE
+"AutenticacionySeguridad.GrupoPermisoComponente" }o--|| "AutenticacionySeguridad.ComponenteSistema" : componente / on_delete=CASCADE
+"AutenticacionySeguridad.GrupoUsuario" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=CASCADE
+"AutenticacionySeguridad.Perfil" }o--|| "AutenticacionySeguridad.User" : usuario / on_delete=CASCADE
+"AutenticacionySeguridad.Suscripcion" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=CASCADE
+"AutenticacionySeguridad.Suscripcion" }o--|| "AutenticacionySeguridad.PlanSuscripcion" : plan / on_delete=PROTECT
+"AutenticacionySeguridad.User" }o--|| "AutenticacionySeguridad.Rol" : role / on_delete=PROTECT
+"AutenticacionySeguridad.User" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"AutenticacionySeguridad.UsuarioGrupo" }o--|| "AutenticacionySeguridad.User" : usuario / on_delete=CASCADE
+"AutenticacionySeguridad.UsuarioGrupo" }o--|| "AutenticacionySeguridad.GrupoUsuario" : grupo / on_delete=CASCADE
+"GestionClientesyMascotas.Mascota" }o--|| "AutenticacionySeguridad.User" : usuario / on_delete=CASCADE
+"GestionClientesyMascotas.Mascota" }o--|| "GestionServiciosyReserva.Especie" : especie / on_delete=PROTECT
+"GestionClientesyMascotas.Mascota" }o--|| "GestionServiciosyReserva.Raza" : raza / on_delete=PROTECT
+"GestionClientesyMascotas.Mascota" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionInventarioProveedores.CategoriaProducto" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionInventarioProveedores.Producto" }o--|| "GestionInventarioProveedores.CategoriaProducto" : categoria_producto / on_delete=PROTECT
+"GestionInventarioProveedores.Producto" }o--|| "GestionInventarioProveedores.Proveedor" : proveedor / on_delete=SET_NULL
+"GestionInventarioProveedores.Producto" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionInventarioProveedores.Proveedor" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionServiciosyReserva.CategoriaServicio" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionServiciosyReserva.Cita" }o--|| "AutenticacionySeguridad.User" : usuario / on_delete=CASCADE
+"GestionServiciosyReserva.Cita" }o--|| "GestionClientesyMascotas.Mascota" : mascota / on_delete=PROTECT
+"GestionServiciosyReserva.Cita" }o--|| "GestionServiciosyReserva.Servicio" : servicio / on_delete=PROTECT
+"GestionServiciosyReserva.Cita" }o--|| "GestionServiciosyReserva.PrecioServicio" : precio_servicio / on_delete=PROTECT
+"GestionServiciosyReserva.Cita" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionServiciosyReserva.PrecioServicio" }o--|| "GestionServiciosyReserva.Servicio" : servicio / on_delete=CASCADE
+"GestionServiciosyReserva.PrecioServicio" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionServiciosyReserva.Raza" }o--|| "GestionServiciosyReserva.Especie" : especie / on_delete=PROTECT
+"GestionServiciosyReserva.Servicio" }o--|| "GestionServiciosyReserva.CategoriaServicio" : categoria / on_delete=PROTECT
+"GestionServiciosyReserva.Servicio" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionarClinicaVeterinaria.ArchivoClinico" }o--|| "GestionarClinicaVeterinaria.ConsultaClinica" : consulta_clinica / on_delete=CASCADE
+"GestionarClinicaVeterinaria.ConsultaClinica" }o--|| "GestionarClinicaVeterinaria.HistorialClinico" : historial_clinico / on_delete=CASCADE
+"GestionarClinicaVeterinaria.ConsultaClinica" }o--|| "GestionServiciosyReserva.Cita" : cita / on_delete=SET_NULL
+"GestionarClinicaVeterinaria.ConsultaClinica" }o--|| "AutenticacionySeguridad.User" : usuario_veterinario / on_delete=PROTECT
+"GestionarClinicaVeterinaria.ConsultaClinica" }o--|| "AutenticacionySeguridad.Veterinaria" : veterinaria / on_delete=PROTECT
+"GestionarClinicaVeterinaria.DetalleReceta" }o--|| "GestionarClinicaVeterinaria.Receta" : receta / on_delete=CASCADE
+"GestionarClinicaVeterinaria.DetalleReceta" }o--|| "GestionInventarioProveedores.Producto" : producto / on_delete=SET_NULL
+"GestionarClinicaVeterinaria.HistorialClinico" }o--|| "GestionClientesyMascotas.Mascota" : mascota / on_delete=CASCADE
+"GestionarClinicaVeterinaria.Receta" }o--|| "GestionarClinicaVeterinaria.ConsultaClinica" : consulta_clinica / on_delete=CASCADE
+"GestionarClinicaVeterinaria.Tratamiento" }o--|| "GestionarClinicaVeterinaria.ConsultaClinica" : consulta_clinica / on_delete=CASCADE
+"GestionarClinicaVeterinaria.VacunaAplicada" }o--|| "GestionarClinicaVeterinaria.ConsultaClinica" : consulta_clinica / on_delete=CASCADE
+"admin.LogEntry" }o--|| "AutenticacionySeguridad.User" : user / on_delete=CASCADE
+"admin.LogEntry" }o--|| "contenttypes.ContentType" : content_type / on_delete=SET_NULL
+"auth.Permission" }o--|| "contenttypes.ContentType" : content_type / on_delete=CASCADE
+"token_blacklist.BlacklistedToken" }o--|| "token_blacklist.OutstandingToken" : token / on_delete=CASCADE
+"token_blacklist.OutstandingToken" }o--|| "AutenticacionySeguridad.User" : user / on_delete=SET_NULL
+"AutenticacionySeguridad.User" }o--o{ "auth.Group" : M2M groups via AutenticacionySeguridad.User_groups
+"AutenticacionySeguridad.User" }o--o{ "auth.Permission" : M2M user_permissions via AutenticacionySeguridad.User_user_permissions
+"auth.Group" }o--o{ "auth.Permission" : M2M permissions via auth.Group_permissions
+
+@enduml
