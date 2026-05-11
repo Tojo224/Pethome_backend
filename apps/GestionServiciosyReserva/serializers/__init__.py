@@ -11,3 +11,12 @@ from .citas_serializer import (
     CitaSerializer,
     CitaEstadoUpdateSerializer,
 )
+from .rutas_serializer import (
+    DetalleRutaCreateSerializer,
+    DetalleRutaReadSerializer,
+    DetalleRutaUpdateSerializer,
+    RutaProgramadaReadSerializer,
+    RutaProgramadaWriteSerializer,
+    UnidadMovilSerializer,
+    UnidadMovilWriteSerializer,
+)

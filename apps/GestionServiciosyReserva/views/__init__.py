@@ -10,3 +10,13 @@ from .categoriaservicio_view import (
 	CategoriaServicioDetailLegacyView,
 )
 from .citas_view import CitaListCreateView, CitaDetailView, CitaEstadoUpdateView
+from .rutas_view import (
+	UnidadMovilListCreateView,
+	UnidadMovilDetailView,
+	RutaProgramadaListCreateView,
+	RutaProgramadaDetailView,
+	RutaProgramadaDetalleListCreateView,
+	DetalleRutaDetailView,
+	MisRutasListView,
+	MisRutasHoyView,
+)

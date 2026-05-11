@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/gestion/clientes/", include("apps.GestionClientesyMascotas.urls")),
     path("api/servicios/", include("apps.GestionServiciosyReserva.urls")),
     path("api/gestion/servicios/", include("apps.GestionServiciosyReserva.urls")),
+    path("api/", include("apps.GestionServiciosyReserva.ruta_urls")),
     path("api/gestion/clinica/", include("apps.GestionarClinicaVeterinaria.urls")),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("api/gestion/inventario/", include("apps.GestionInventarioProveedores.urls")),

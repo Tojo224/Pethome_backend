@@ -23,20 +23,20 @@ class TenantContextMiddleware:
 
     def _attach_tenant(self, request) -> None:
         tenant = None
-        user = getattr(request, "user", None)
+        header = self.jwt_auth.get_header(request)
+        if header:
+            raw_token = self.jwt_auth.get_raw_token(header)
+            if raw_token:
+                try:
+                    validated = self.jwt_auth.get_validated_token(raw_token)
+                    tenant = self._from_token(validated)
+                except (InvalidToken, TokenError):
+                    tenant = None
 
-        if user is not None and getattr(user, "is_authenticated", False):
-            tenant = self._from_user(user)
-        else:
-            header = self.jwt_auth.get_header(request)
-            if header:
-                raw_token = self.jwt_auth.get_raw_token(header)
-                if raw_token:
-                    try:
-                        validated = self.jwt_auth.get_validated_token(raw_token)
-                        tenant = self._from_token(validated)
-                    except (InvalidToken, TokenError):
-                        tenant = None
+        if tenant is None:
+            user = getattr(request, "user", None)
+            if user is not None and getattr(user, "is_authenticated", False):
+                tenant = self._from_user(user)
 
         request.tenant = tenant
 

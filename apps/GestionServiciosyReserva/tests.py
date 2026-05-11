@@ -10,6 +10,7 @@ from apps.AutenticacionySeguridad.models import (
 	ComponenteSistema,
 	GrupoPermisoComponente,
 	GrupoUsuario,
+	Perfil,
 	Rol,
 	User,
 	UsuarioGrupo,
@@ -18,9 +19,14 @@ from apps.AutenticacionySeguridad.models import (
 from apps.GestionClientesyMascotas.models import Especie, Mascota, Raza
 from apps.GestionServiciosyReserva.models import (
 	CategoriaServicio,
+	Cita,
+	DetalleRuta,
 	PrecioServicio,
+	RutaProgramada,
 	Servicio,
+	UnidadMovil,
 )
+from apps.NotificacionesySeguimiento.models import Seguimiento
 
 FERNET_TEST_KEY = "y-8vRXvZL5t7I8S_dZd2a0B7aKXzH_kL8BkpE9SLiW8="
 
@@ -511,3 +517,191 @@ class CitasAgendaSaaSTests(APITestCase):
 		)
 		self.assertEqual(conflict.status_code, status.HTTP_200_OK)
 		self.assertFalse(conflict.data["disponible"])
+
+
+@override_settings(BITACORA_SECRET_KEYS=[FERNET_TEST_KEY])
+class RutasProgramadasTests(APITestCase):
+	def setUp(self):
+		self.vet = Veterinaria.objects.create(
+			nombre="Vet Rutas",
+			slug="vet-rutas",
+			nit="905",
+			correo="rutas@example.com",
+		)
+		self.rol_admin = Rol.objects.create(nombre=RoleEnum.ADMIN.value, descripcion="Admin")
+		self.rol_veterinario = Rol.objects.create(
+			nombre=RoleEnum.VETERINARIAN.value,
+			descripcion="Veterinario",
+		)
+		self.rol_cliente = Rol.objects.create(nombre=RoleEnum.CLIENT.value, descripcion="Cliente")
+
+		self.admin = User.objects.create(
+			correo="admin-rutas@example.com",
+			role=self.rol_admin,
+			veterinaria=self.vet,
+			is_active=True,
+			is_staff=True,
+			is_superuser=True,
+		)
+		self.veterinario = User.objects.create(
+			correo="vet-rutas@example.com",
+			role=self.rol_veterinario,
+			veterinaria=self.vet,
+			is_active=True,
+		)
+		self.cliente_user = User.objects.create(
+			correo="cliente-rutas@example.com",
+			role=self.rol_cliente,
+			veterinaria=self.vet,
+			is_active=True,
+		)
+		Perfil.objects.create(
+			usuario=self.cliente_user,
+			nombre="Maria Lopez",
+			telefono="70000000",
+		)
+
+		self.especie = Especie.objects.create(nombre="Canino")
+		self.raza = Raza.objects.create(nombre="Mestizo", especie=self.especie)
+		self.mascota = Mascota.objects.create(
+			usuario=self.cliente_user,
+			especie=self.especie,
+			raza=self.raza,
+			veterinaria=self.vet,
+			nombre="Toby",
+		)
+		self.categoria = CategoriaServicio.objects.create(
+			nombre="Domicilio",
+			descripcion="Categoria domicilio",
+			veterinaria=self.vet,
+		)
+		self.servicio = Servicio.objects.create(
+			nombre="Vacunacion",
+			descripcion="Vacuna a domicilio",
+			categoria=self.categoria,
+			duracion_estimada=40,
+			disponible_domicilio=True,
+			veterinaria=self.vet,
+		)
+		self.precio = PrecioServicio.objects.create(
+			servicio=self.servicio,
+			variacion="Base",
+			modalidad="DOMICILIO",
+			precio=100,
+			descripcion="Precio domicilio",
+			veterinaria=self.vet,
+		)
+		self.fecha = timezone.localdate() + timedelta(days=1)
+		self.cita_domicilio = Cita.objects.create(
+			usuario=self.cliente_user,
+			mascota=self.mascota,
+			servicio=self.servicio,
+			precio_servicio=self.precio,
+			fecha_programada=self.fecha,
+			hora_inicio=time(9, 0),
+			hora_fin=time(9, 40),
+			modalidad="DOMICILIO",
+			direccion_cita="-17.7833,-63.1821",
+			estado="CONFIRMADA",
+			veterinaria=self.vet,
+		)
+		self.cita_clinica = Cita.objects.create(
+			usuario=self.cliente_user,
+			mascota=self.mascota,
+			servicio=self.servicio,
+			precio_servicio=self.precio,
+			fecha_programada=self.fecha,
+			hora_inicio=time(10, 0),
+			hora_fin=time(10, 40),
+			modalidad="CLINICA",
+			estado="CONFIRMADA",
+			veterinaria=self.vet,
+		)
+
+	def _crear_unidad_y_ruta(self):
+		self.client.force_login(self.admin)
+
+		unidad_response = self.client.post(
+			"/api/unidades-moviles/",
+			{
+				"nombre": "Movil 01",
+				"placa": "ABC-123",
+				"descripcion": "Unidad principal",
+			},
+			format="json",
+		)
+		self.assertEqual(unidad_response.status_code, status.HTTP_201_CREATED)
+
+		ruta_response = self.client.post(
+			"/api/rutas-programadas/",
+			{
+				"nombre": "Ruta Norte",
+				"fecha": self.fecha.isoformat(),
+				"estado": "PROGRAMADA",
+				"id_unidad": unidad_response.data["id_unidad"],
+				"id_veterinario": self.veterinario.id_usuario,
+			},
+			format="json",
+		)
+		self.assertEqual(ruta_response.status_code, status.HTTP_201_CREATED)
+		return unidad_response.data, ruta_response.data
+
+	def test_admin_can_create_route_and_assign_domicilio_cita(self):
+		_, ruta = self._crear_unidad_y_ruta()
+
+		detalle_response = self.client.post(
+			f"/api/rutas-programadas/{ruta['id_ruta']}/detalle/",
+			{
+				"id_cita": self.cita_domicilio.id_cita,
+				"orden": 1,
+				"hora_estimada": "09:00:00",
+			},
+			format="json",
+		)
+		self.assertEqual(detalle_response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(detalle_response.data["cita"]["direccion_cita"], "-17.7833,-63.1821")
+		self.assertEqual(detalle_response.data["orden"], 1)
+
+	def test_cannot_assign_clinica_cita_to_route(self):
+		_, ruta = self._crear_unidad_y_ruta()
+
+		response = self.client.post(
+			f"/api/rutas-programadas/{ruta['id_ruta']}/detalle/",
+			{
+				"id_cita": self.cita_clinica.id_cita,
+				"orden": 1,
+			},
+			format="json",
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("id_cita", response.data)
+
+	def test_veterinario_can_view_own_routes_and_status_change_creates_seguimiento(self):
+		_, ruta = self._crear_unidad_y_ruta()
+		detalle = self.client.post(
+			f"/api/rutas-programadas/{ruta['id_ruta']}/detalle/",
+			{
+				"id_cita": self.cita_domicilio.id_cita,
+				"orden": 1,
+			},
+			format="json",
+		)
+		self.assertEqual(detalle.status_code, status.HTTP_201_CREATED)
+
+		self.client.force_login(self.veterinario)
+		mis_rutas = self.client.get(f"/api/mis-rutas/?fecha={self.fecha.isoformat()}")
+		self.assertEqual(mis_rutas.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(mis_rutas.data), 1)
+		self.assertEqual(mis_rutas.data[0]["id_ruta"], ruta["id_ruta"])
+
+		update = self.client.patch(
+			f"/api/detalle-ruta/{detalle.data['id_detalle_ruta']}/",
+			{"estado": "EN_CAMINO"},
+			format="json",
+		)
+		self.assertEqual(update.status_code, status.HTTP_200_OK)
+		self.assertEqual(update.data["estado"], "EN_CAMINO")
+
+		seguimiento = Seguimiento.objects.get(cita=self.cita_domicilio, tipo_seguimiento="RUTA")
+		self.assertEqual(seguimiento.estado_actual, "EN_CAMINO")
+		self.assertEqual(seguimiento.descripcion, "Veterinario en camino al domicilio")

@@ -8,6 +8,7 @@ class Seguimiento(models.Model):
         ("CITA", "Cita"),
         ("SERVICIO", "Servicio"),
         ("PEDIDO", "Pedido"),
+        ("RUTA", "Ruta"),
     ]
 
     id_seguimiento = models.BigAutoField(primary_key=True)
