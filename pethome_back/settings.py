@@ -26,10 +26,14 @@ SECRET_KEY = config("SECRET_KEY")
 
 DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = config(
+_allowed_hosts_raw = config(
     "ALLOWED_HOSTS",
     default="localhost,127.0.0.1"
-).split(",")
+)
+ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_raw.split(",") if h.strip()]
+# Permitir cualquier subdominio de onrender.com en producción
+if not DEBUG:
+    ALLOWED_HOSTS += [".onrender.com"]
 
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
@@ -108,7 +112,7 @@ DATABASES = {
     "default": dj_database_url.config(
         default=config("DATABASE_URL"),
         conn_max_age=600,
-        ssl_require=False,
+        ssl_require=not DEBUG,  # SSL requerido en producción (Neon, Render)
         engine="django.db.backends.postgresql",
     )
 }
@@ -162,6 +166,12 @@ if GCS_PROJECT_ID:
 
 # WhiteNoise configuration
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Seguridad adicional en producción
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 # Default primary key field type

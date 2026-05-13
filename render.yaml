@@ -2,69 +2,60 @@ services:
   - type: web
     name: homepet-api
     runtime: python
-    runtimeVersion: 3.11
+    runtimeVersion: "3.11"
     buildCommand: "./build.sh"
-    startCommand: "gunicorn pethome_back.wsgi --log-file -"
+    startCommand: "gunicorn pethome_back.wsgi --log-file - --workers 2 --timeout 120"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11
+        value: "3.11"
       - key: SECRET_KEY
-        fromSecret: SECRET_KEY
+        generateValue: true
       - key: DEBUG
         value: "False"
-      - key: ALLOWED_HOSTS
-        value: "*.onrender.com,localhost"
+      # DATABASE_URL — configurar manualmente en Render con la URL de Neon
       - key: DATABASE_URL
-        fromDatabase:
-          name: homepet_db
-          property: connectionString
-      - key: GCS_BUCKET_NAME
         sync: false
-      - key: GCS_PROJECT_ID
+      - key: BITACORA_SECRET_KEY
         sync: false
-      - key: GCS_BACKUP_PREFIX
-        value: "backups"
-      - key: GOOGLE_APPLICATION_CREDENTIALS
+      # CORS — URL del frontend desplegado
+      - key: CORS_ALLOWED_ORIGINS
         sync: false
-      - key: PG_DUMP_PATH
+      - key: FRONTEND_BASE_URL
         sync: false
-      - key: PSQL_PATH
+      # OpenRouter / Chatbot
+      - key: OPENROUTER_API_KEY
         sync: false
-
-  - type: cron
-    name: homepet-backup-scheduler
-    runtime: python
-    runtimeVersion: 3.11
-    schedule: "*/30 * * * *"
-    buildCommand: "./build.sh"
-    startCommand: "python manage.py run_backup_scheduler"
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11
-      - key: SECRET_KEY
-        fromSecret: SECRET_KEY
-      - key: DEBUG
+      - key: OPENROUTER_MODEL
+        value: "openai/gpt-4o-mini"
+      - key: OPENROUTER_SITE_URL
+        sync: false
+      - key: OPENROUTER_SITE_NAME
+        value: "PetHome Chatbot"
+      # Email / Gmail
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.smtp.EmailBackend"
+      - key: EMAIL_HOST
+        value: "smtp.gmail.com"
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_USE_SSL
         value: "False"
-      - key: ALLOWED_HOSTS
-        value: "*.onrender.com,localhost"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: homepet_db
-          property: connectionString
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      # Google Cloud Storage
       - key: GCS_BUCKET_NAME
-        sync: false
+        value: "pethome-backups-pethome"
       - key: GCS_PROJECT_ID
-        sync: false
+        value: "pethome-backups"
       - key: GCS_BACKUP_PREFIX
         value: "backups"
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        sync: false
       - key: PG_DUMP_PATH
-        sync: false
+        value: "pg_dump"
       - key: PSQL_PATH
-        sync: false
-
-databases:
-  - name: homepet_db
-    databaseName: homepet_db
-    region: ohio
+        value: "psql"
