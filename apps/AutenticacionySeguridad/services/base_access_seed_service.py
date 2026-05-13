@@ -81,6 +81,7 @@ class BaseAccessSeedService:
         ComponentDef("SEG_GRUPO_USUARIO", "Seguridad grupos", "ACCION", "SEGURIDAD", None, "WEB", "MENU_USUARIOS", 201),
         ComponentDef("SEG_PERMISO_COMPONENTE", "Seguridad permisos", "ACCION", "SEGURIDAD", None, "WEB", "MENU_USUARIOS", 202),
         ComponentDef("SEG_BITACORA", "Seguridad bitácora", "ACCION", "SEGURIDAD", None, "WEB", "MENU_BITACORA", 203),
+        ComponentDef("SEG_BACKUPS", "Gestión de backups", "ACCION", "SEGURIDAD", "/_admin/gestionar-backups", "WEB", "MENU_BITACORA", 204),
         ComponentDef("CLI_CLIENTES", "Clientes API", "ACCION", "CLIENTES", None, "AMBOS", "MENU_CLIENTES", 210),
         ComponentDef("CLI_MASCOTAS", "Mascotas API", "ACCION", "MASCOTAS", None, "AMBOS", "MENU_MASCOTAS", 211),
         ComponentDef("CLI_CATALOGOS", "Catálogos mascotas", "ACCION", "MASCOTAS", None, "AMBOS", "MENU_MASCOTAS", 212),

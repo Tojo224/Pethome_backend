@@ -1,0 +1,28 @@
+[36;1mOperations to perform:[0m
+[1m  Apply all migrations: [0mAutenticacionySeguridad, GestionClientesyMascotas, GestionInventarioProveedores, GestionServiciosyReserva, GestionarClinicaVeterinaria, admin, auth, contenttypes, sessions, token_blacklist
+Running pre-migrate handlers for application admin
+Running pre-migrate handlers for application auth
+Running pre-migrate handlers for application contenttypes
+Running pre-migrate handlers for application sessions
+Running pre-migrate handlers for application rest_framework_simplejwt
+Running pre-migrate handlers for application token_blacklist
+Running pre-migrate handlers for application AutenticacionySeguridad
+Running pre-migrate handlers for application GestionClientesyMascotas
+Running pre-migrate handlers for application GestionServiciosyReserva
+Running pre-migrate handlers for application GestionarClinicaVeterinaria
+Running pre-migrate handlers for application GestionInventarioProveedores
+[36;1mRunning migrations:[0m
+  No migrations to apply.
+[31m  Your models in app(s): 'GestionClientesyMascotas', 'GestionServiciosyReserva' have changes that are not yet reflected in a migration, and so won't be applied.[0m
+[31m  Run 'manage.py makemigrations' to make new migrations, and then re-run 'manage.py migrate' to apply them.[0m
+Running post-migrate handlers for application admin
+Running post-migrate handlers for application auth
+Running post-migrate handlers for application contenttypes
+Running post-migrate handlers for application sessions
+Running post-migrate handlers for application rest_framework_simplejwt
+Running post-migrate handlers for application token_blacklist
+Running post-migrate handlers for application AutenticacionySeguridad
+Running post-migrate handlers for application GestionClientesyMascotas
+Running post-migrate handlers for application GestionServiciosyReserva
+Running post-migrate handlers for application GestionarClinicaVeterinaria
+Running post-migrate handlers for application GestionInventarioProveedores

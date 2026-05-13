@@ -1,0 +1,6 @@
+psql_path=C:\Program Files\PostgreSQL\18\bin\psql.exe
+psql_exists=True
+host=ep-morning-union-amemxeyj-pooler.c-5.us-east-1.aws.neon.tech port= user=neondb_owner dbname=neondb
+cmd=['C:\\Program Files\\PostgreSQL\\18\\bin\\psql.exe', '-h', 'ep-morning-union-amemxeyj-pooler.c-5.us-east-1.aws.neon.tech', '-U', 'neondb_owner', '-d', 'neondb', '-f', 'restore_backup_20260509.sql']
+DB_URL_sample=postgresql://neondb_owner:npg_Ko5fAUSndj1z@ep-morning-union-amemxeyj-pooler.c-5....
+psql_returncode=0

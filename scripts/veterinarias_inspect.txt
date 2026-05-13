@@ -1,0 +1,3 @@
+count=2
+(1, 'Veterinaria Default', 'default', True)
+(2, 'PetCare Veterinaria', 'petcare', True)

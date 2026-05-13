@@ -106,7 +106,10 @@ WSGI_APPLICATION = "pethome_back.wsgi.application"
 # Database
 DATABASES = {
     "default": dj_database_url.config(
-        default=config("DATABASE_URL")
+        default=config("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=False,
+        engine="django.db.backends.postgresql",
     )
 }
 
@@ -142,6 +145,20 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Media files (archivos subidos)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Google Cloud Storage para backups
+GCS_BUCKET_NAME = config("GCS_BUCKET_NAME", default="")
+GCS_PROJECT_ID = config("GCS_PROJECT_ID", default="")
+GCS_BACKUP_PREFIX = config("GCS_BACKUP_PREFIX", default="backups")
+GCS_CREDENTIALS_FILE = config("GOOGLE_APPLICATION_CREDENTIALS", default="")
+PG_DUMP_PATH = config("PG_DUMP_PATH", default="pg_dump")
+PSQL_PATH = config("PSQL_PATH", default="psql")
+
+if GCS_CREDENTIALS_FILE:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GCS_CREDENTIALS_FILE
+
+if GCS_PROJECT_ID:
+    os.environ.setdefault("GOOGLE_CLOUD_PROJECT", GCS_PROJECT_ID)
 
 # WhiteNoise configuration
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

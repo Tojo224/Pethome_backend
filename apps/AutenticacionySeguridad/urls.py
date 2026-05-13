@@ -34,6 +34,12 @@ from .views.usuario_grupo_view import (
     UsuarioGrupoListCreateView,
     UsuarioGrupoDeleteView,
 )
+from .views.backup_views import (
+    BackupRestoreViewSet,
+    BackupCreateView,
+    BackupRestoreView,
+    BackupConfigRetrieveUpdateView,
+)
 
 urlpatterns = [
     path("", AuthRootView.as_view(), name="auth-root"),
@@ -67,4 +73,9 @@ urlpatterns = [
     path("grupos-permisos/<int:pk>/", GrupoPermisoComponenteDetailView.as_view(), name="grupo-permiso-detail"),
 
     path("componentes-sistema/", ComponenteSistemaListView.as_view(), name="componentes-sistema-list"),
+
+    path("backups/", BackupRestoreViewSet.as_view({"get": "list"}), name="backup-list"),
+    path("backups/create/", BackupCreateView.as_view(), name="backup-create"),
+    path("backups/<int:backup_id>/restore/", BackupRestoreView.as_view(), name="backup-restore"),
+    path("backups/config/", BackupConfigRetrieveUpdateView.as_view(), name="backup-config"),
 ]
