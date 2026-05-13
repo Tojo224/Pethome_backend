@@ -140,9 +140,10 @@ class MobileLoginSerializer(serializers.Serializer):
             )
 
         role_name = (user.role.nombre if user.role_id else "").upper()
-        if role_name != "CLIENT":
+        allowed_roles = {"CLIENT", "ADMIN", "VETERINARIO", "DUEÑO", "OWNER"}
+        if role_name not in allowed_roles:
             raise serializers.ValidationError(
-                {"detail": "Solo clientes pueden usar este login movil.", "code": "LOGIN_MOVIL_NO_PERMITIDO"}
+                {"detail": f"El rol {role_name} no tiene permitido el acceso movil.", "code": "LOGIN_MOVIL_NO_PERMITIDO"}
             )
 
         attrs["user"] = user

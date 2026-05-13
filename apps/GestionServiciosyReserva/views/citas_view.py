@@ -20,6 +20,7 @@ from ..serializers.citas_serializer import (
     CitaEstadoUpdateSerializer,
     CitaSerializer,
 )
+from apps.NotificacionesySeguimiento.services.notification_service import NotificationService
 
 
 
@@ -260,7 +261,7 @@ class CitaEstadoUpdateView(TenantViewMixin, APIView):
             if "estado" in serializer.validated_data:
                 CitaService.actualizar_estado(cita, serializer.validated_data.get("estado"))
 
-            # Bitácora específica si es confirmación
+                # Bitácora específica si es confirmación
                 accion_confirmar = BitacoraAccion.CITA_CONFIRMADA_DESDE_AGENDA if serializer.validated_data.get("estado") == "CONFIRMADA" else BitacoraAccion.RESERVA_MODIFICADA
                 self.registrar_bitacora(
                     accion=accion_confirmar,
@@ -269,6 +270,7 @@ class CitaEstadoUpdateView(TenantViewMixin, APIView):
                     entidad_id=pk,
                     resultado=BitacoraResultado.EXITO,
                 )
+
             return Response(CitaSerializer(cita).data)
         except ValidationError as e:
             self.registrar_bitacora(

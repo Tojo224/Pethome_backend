@@ -30,10 +30,15 @@ class AuthContextService:
         componentes_planos = ComponenteSelector.get_componentes_permitidos(user, plataforma)
         componentes_arbol = ComponenteTreeService.build_context_tree(componentes_planos)
         
+        # Obtener nombre del perfil si existe
+        perfil = getattr(user, 'perfil', None)
+        nombre_usuario = perfil.nombre if perfil else (user.first_name or user.correo)
+
         contexto = {
             "usuario": {
                 "id_usuario": user.id_usuario,
                 "correo": user.correo,
+                "nombre": nombre_usuario,
                 "rol": user.role.nombre if user.role_id else "Sin Rol",
                 "id_veterinaria": user.veterinaria_id,
                 "is_superuser": user.is_superuser,
