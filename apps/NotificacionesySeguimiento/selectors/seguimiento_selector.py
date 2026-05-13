@@ -3,8 +3,10 @@ from django.db.models import Q
 from ..models import Seguimiento
 from ..permissions import (
     get_user_role_name,
+    is_admin_role,
     is_client_role,
-    is_privileged_role,
+    is_receptionist_role,
+    is_superadmin_role,
     is_veterinarian_role,
 )
 
@@ -24,8 +26,9 @@ class SeguimientoSelector:
 
     @staticmethod
     def scope_queryset_for_user(queryset, user):
-        if getattr(user, "is_superuser", False):
-            return queryset
+        role_name = get_user_role_name(user)
+        if getattr(user, "is_superuser", False) or is_superadmin_role(role_name):
+            return queryset.none()
 
         tenant_id = getattr(user, "veterinaria_id", None)
         if not tenant_id:
@@ -33,7 +36,6 @@ class SeguimientoSelector:
 
         queryset = queryset.filter(veterinaria_id=tenant_id)
 
-        role_name = get_user_role_name(user)
         if is_client_role(role_name):
             return queryset.filter(
                 visible_cliente=True,
@@ -44,15 +46,22 @@ class SeguimientoSelector:
             )
 
         if is_veterinarian_role(role_name):
-            # Si existe consulta clinica asociada a la cita, se filtra por veterinario asignado.
-            # Cuando no existe esa asociacion, se mantiene al menos aislamiento por veterinaria.
+            related_pedido_ids = (
+                Seguimiento.objects.filter(
+                    veterinaria_id=tenant_id,
+                    cita__consultas_clinicas__usuario_veterinario_id=user.id_usuario,
+                )
+                .exclude(pedido_id__isnull=True)
+                .values_list("pedido_id", flat=True)
+                .distinct()
+            )
             return queryset.filter(
-                Q(cita__consultas_clinicas__isnull=True)
-                | Q(cita__consultas_clinicas__usuario_veterinario_id=user.id_usuario)
-                | Q(pedido__isnull=False)
+                Q(cita__consultas_clinicas__usuario_veterinario_id=user.id_usuario)
+                | Q(usuario_id=user.id_usuario)
+                | Q(pedido_id__in=related_pedido_ids)
             ).distinct()
 
-        if is_privileged_role(role_name):
+        if is_admin_role(role_name) or is_receptionist_role(role_name):
             return queryset
 
         # Rol no identificado: fallback seguro a datos propios.

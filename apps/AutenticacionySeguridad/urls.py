@@ -9,6 +9,9 @@ from apps.AutenticacionySeguridad.views.auth_view import (
     AuthRootView,
     PublicVeterinariaListView,
     PublicVeterinariaView,
+    ForgotPasswordView,
+    ResetPasswordView,
+    ChangePasswordView,
 )
 from .views.perfil_views import (
     UsuarioListCreateView,
@@ -31,6 +34,12 @@ from .views.usuario_grupo_view import (
     UsuarioGrupoListCreateView,
     UsuarioGrupoDeleteView,
 )
+from .views.backup_views import (
+    BackupRestoreViewSet,
+    BackupCreateView,
+    BackupRestoreView,
+    BackupConfigRetrieveUpdateView,
+)
 
 urlpatterns = [
     path("", AuthRootView.as_view(), name="auth-root"),
@@ -38,6 +47,9 @@ urlpatterns = [
     path("mobile/login/", MobileLoginView.as_view(), name="auth-mobile-login"),
     path("mobile/register/", MobileRegisterView.as_view(), name="auth-mobile-register"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
+    path("forgot-password/", ForgotPasswordView.as_view(), name="auth-forgot-password"),
+    path("reset-password/", ResetPasswordView.as_view(), name="auth-reset-password"),
+    path("change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
     path("me/", MeView.as_view(), name="auth-me"),
     path("componentes/", ComponentesView.as_view(), name="auth-componentes"),
     path("public/veterinarias/", PublicVeterinariaListView.as_view(), name="public-veterinaria-list"),
@@ -61,4 +73,9 @@ urlpatterns = [
     path("grupos-permisos/<int:pk>/", GrupoPermisoComponenteDetailView.as_view(), name="grupo-permiso-detail"),
 
     path("componentes-sistema/", ComponenteSistemaListView.as_view(), name="componentes-sistema-list"),
+
+    path("backups/", BackupRestoreViewSet.as_view({"get": "list"}), name="backup-list"),
+    path("backups/create/", BackupCreateView.as_view(), name="backup-create"),
+    path("backups/<int:backup_id>/restore/", BackupRestoreView.as_view(), name="backup-restore"),
+    path("backups/config/", BackupConfigRetrieveUpdateView.as_view(), name="backup-config"),
 ]

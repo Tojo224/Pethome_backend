@@ -8,8 +8,6 @@ ROLE_CLIENT = "CLIENT"
 ROLE_ADMIN = "ADMIN"
 ROLE_RECEPCIONISTA = "RECEPCIONISTA"
 ROLE_VETERINARIAN = "VETERINARIAN"
-ROLE_GROOMER = "GROOMER"
-ROLE_PERSONAL_LOGISTICO = "PERSONAL_LOGISTICO"
 ROLE_SUPERADMIN = "SUPERADMIN"
 
 
@@ -21,10 +19,6 @@ _ROLE_ALIASES = {
     "RECEPCIONISTA": ROLE_RECEPCIONISTA,
     "VETERINARIAN": ROLE_VETERINARIAN,
     "VETERINARIO": ROLE_VETERINARIAN,
-    "GROOMER": ROLE_GROOMER,
-    "PERSONAL_LOGISTICO": ROLE_PERSONAL_LOGISTICO,
-    "PERSONALLOGISTICO": ROLE_PERSONAL_LOGISTICO,
-    "LOGISTICO": ROLE_PERSONAL_LOGISTICO,
     "SUPERADMIN": ROLE_SUPERADMIN,
 }
 
@@ -32,8 +26,6 @@ _PRIVILEGED_ROLES = {
     ROLE_ADMIN,
     ROLE_RECEPCIONISTA,
     ROLE_VETERINARIAN,
-    ROLE_GROOMER,
-    ROLE_PERSONAL_LOGISTICO,
     ROLE_SUPERADMIN,
 }
 
@@ -100,12 +92,45 @@ def is_client_role(role_name):
     return normalize_role(role_name) == ROLE_CLIENT
 
 
+def is_admin_role(role_name):
+    return normalize_role(role_name) == ROLE_ADMIN
+
+
+def is_receptionist_role(role_name):
+    return normalize_role(role_name) == ROLE_RECEPCIONISTA
+
+
 def is_veterinarian_role(role_name):
     return normalize_role(role_name) == ROLE_VETERINARIAN
 
 
+def is_superadmin_role(role_name):
+    return normalize_role(role_name) == ROLE_SUPERADMIN
+
+
 def is_privileged_role(role_name):
     return normalize_role(role_name) in _PRIVILEGED_ROLES
+
+
+def is_superadmin(user):
+    role_name = get_user_role_name(user)
+    return bool(getattr(user, "is_superuser", False)) or is_superadmin_role(role_name)
+
+
+def is_client(user):
+    return is_client_role(get_user_role_name(user))
+
+
+def is_admin(user):
+    return is_admin_role(get_user_role_name(user))
+
+
+def is_receptionist(user):
+    return is_receptionist_role(get_user_role_name(user))
+
+
+def is_veterinarian(user):
+    return is_veterinarian_role(get_user_role_name(user))
 
 
 class HasVeterinariaOrSuperuser(BasePermission):
@@ -120,3 +145,22 @@ class HasVeterinariaOrSuperuser(BasePermission):
             return True
 
         return bool(getattr(user, "veterinaria_id", None))
+
+
+class HasVeterinariaWithoutSuperadmin(BasePermission):
+    message = "No tienes permisos para consultar esta informacion."
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+
+        if is_superadmin(user):
+            self.message = "SuperAdmin no tiene acceso a este modulo."
+            return False
+
+        if getattr(user, "veterinaria_id", None):
+            return True
+
+        self.message = "No tienes una veterinaria asociada para consultar esta informacion."
+        return False

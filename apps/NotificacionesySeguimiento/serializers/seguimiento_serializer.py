@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from ..models import Seguimiento
+from ..permissions import is_client
 
 
 class SeguimientoListSerializer(serializers.ModelSerializer):
@@ -24,6 +25,11 @@ class SeguimientoListSerializer(serializers.ModelSerializer):
         ]
 
     def get_usuario(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user and is_client(user):
+            return None
+
         user = obj.usuario
         if user is None:
             return None

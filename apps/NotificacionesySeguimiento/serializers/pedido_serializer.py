@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from ..models import Pedido
+from ..permissions import is_client
 from .detallepedido_serializer import DetallePedidoSerializer
 
 
@@ -59,8 +60,16 @@ class PedidoDetailSerializer(PedidoListSerializer):
         ]
 
     def get_seguimientos(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        is_client_user = bool(user and is_client(user))
+
         data = []
-        for seguimiento in obj.seguimientos.all().order_by("-fecha_hora"):
+        queryset = obj.seguimientos.all().order_by("-fecha_hora")
+        if is_client_user:
+            queryset = queryset.filter(visible_cliente=True)
+
+        for seguimiento in queryset:
             data.append(
                 {
                     "id_seguimiento": seguimiento.id_seguimiento,

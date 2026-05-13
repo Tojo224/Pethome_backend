@@ -1,8 +1,12 @@
-from django.contrib.auth import authenticate
 from django.utils import timezone
 from rest_framework import serializers
 
 from ..models import Suscripcion, Veterinaria
+from ..services.auth_security_service import (
+    ensure_user_not_blocked,
+    get_user_for_login,
+    validate_login_password,
+)
 
 
 def get_active_suscripcion(veterinaria_id: int):
@@ -30,16 +34,10 @@ class LoginSerializer(serializers.Serializer):
                 {"detail": "Plataforma invalida. Use WEB o MOVIL.", "code": "PLATAFORMA_INVALIDA"}
             )
 
-        user = authenticate(
-            request=self.context.get("request"),
-            username=correo,
-            password=password,
-        )
-
-        if not user:
-            raise serializers.ValidationError(
-                {"detail": "Correo o contrasena incorrectos.", "code": "LOGIN_FALLIDO"}
-            )
+        user = get_user_for_login(correo)
+        if user:
+            ensure_user_not_blocked(user)
+        user = validate_login_password(user, password)
 
         if not user.is_active:
             raise serializers.ValidationError(
@@ -121,16 +119,10 @@ class MobileLoginSerializer(serializers.Serializer):
                 {"detail": "El plan no permite acceso movil.", "code": "LOGIN_APP_MOVIL_NO_PERMITIDA"}
             )
 
-        user = authenticate(
-            request=self.context.get("request"),
-            username=correo,
-            password=password,
-        )
-
-        if not user:
-            raise serializers.ValidationError(
-                {"detail": "Correo o contrasena incorrectos.", "code": "LOGIN_FALLIDO"}
-            )
+        user = get_user_for_login(correo)
+        if user:
+            ensure_user_not_blocked(user)
+        user = validate_login_password(user, password)
 
         if not user.is_active:
             raise serializers.ValidationError(

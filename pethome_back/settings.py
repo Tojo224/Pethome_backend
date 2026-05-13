@@ -106,7 +106,10 @@ WSGI_APPLICATION = "pethome_back.wsgi.application"
 # Database
 DATABASES = {
     "default": dj_database_url.config(
-        default=config("DATABASE_URL")
+        default=config("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=False,
+        engine="django.db.backends.postgresql",
     )
 }
 
@@ -142,6 +145,20 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Media files (archivos subidos)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Google Cloud Storage para backups
+GCS_BUCKET_NAME = config("GCS_BUCKET_NAME", default="")
+GCS_PROJECT_ID = config("GCS_PROJECT_ID", default="")
+GCS_BACKUP_PREFIX = config("GCS_BACKUP_PREFIX", default="backups")
+GCS_CREDENTIALS_FILE = config("GOOGLE_APPLICATION_CREDENTIALS", default="")
+PG_DUMP_PATH = config("PG_DUMP_PATH", default="pg_dump")
+PSQL_PATH = config("PSQL_PATH", default="psql")
+
+if GCS_CREDENTIALS_FILE:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GCS_CREDENTIALS_FILE
+
+if GCS_PROJECT_ID:
+    os.environ.setdefault("GOOGLE_CLOUD_PROJECT", GCS_PROJECT_ID)
 
 # WhiteNoise configuration
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -179,6 +196,31 @@ SIMPLE_JWT = {
     "USER_ID_FIELD": "id_usuario",
     "USER_ID_CLAIM": "user_id",
 }
+
+LOGIN_MAX_FAILED_ATTEMPTS = config("LOGIN_MAX_FAILED_ATTEMPTS", default=3, cast=int)
+LOGIN_LOCKOUT_MINUTES = config("LOGIN_LOCKOUT_MINUTES", default=5, cast=int)
+PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES = config(
+    "PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES",
+    default=30,
+    cast=int,
+)
+FRONTEND_BASE_URL = config("FRONTEND_BASE_URL", default="http://127.0.0.1:3000")
+PASSWORD_RESET_URL_TEMPLATE = config(
+    "PASSWORD_RESET_URL_TEMPLATE",
+    default="{frontend_base_url}/reset-password?token={token}",
+)
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=30, cast=int)
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@pethome.local")
 
 # Bitacora encryption keys (primary first, optional fallback keys)
 BITACORA_SECRET_KEYS = [

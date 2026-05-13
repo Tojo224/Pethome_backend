@@ -1,0 +1,11 @@
+count=18
+(2, 'noelia@gmail.com', True, True)
+(3, 'admin@pethome.com', True, True)
+(4, 'anaC@gmail.com', False, True)
+(5, 'flabi@gmail.com', False, True)
+(6, 'joaquin@gmail.com', False, True)
+(7, 'tati@gmail.com', False, True)
+(8, 'noe@gmail.com', False, True)
+(9, 'tati2@gmail.com', False, True)
+(10, 'cliente.cu11@pethome.test', False, True)
+(11, 'admin.cu11@pethome.test', True, True)

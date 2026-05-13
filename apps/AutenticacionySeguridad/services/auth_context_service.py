@@ -23,6 +23,7 @@ class AuthContextService:
         """
         plataforma = str(plataforma or "WEB").upper()
         veterinaria = ComponenteSelector.get_veterinaria_context(user)
+
         plan = PlanSelector.get_active_plan(veterinaria)
         
         # Obtener componentes y construir árbol

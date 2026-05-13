@@ -3,8 +3,11 @@ from django.db.models import Prefetch, Q
 from ..models import Pedido, Seguimiento
 from ..permissions import (
     get_user_role_name,
+    is_admin_role,
     is_client_role,
-    is_privileged_role,
+    is_receptionist_role,
+    is_superadmin_role,
+    is_veterinarian_role,
 )
 
 
@@ -26,8 +29,9 @@ class PedidoSelector:
 
     @staticmethod
     def scope_queryset_for_user(queryset, user):
-        if getattr(user, "is_superuser", False):
-            return queryset
+        role_name = get_user_role_name(user)
+        if getattr(user, "is_superuser", False) or is_superadmin_role(role_name):
+            return queryset.none()
 
         tenant_id = getattr(user, "veterinaria_id", None)
         if not tenant_id:
@@ -35,12 +39,23 @@ class PedidoSelector:
 
         queryset = queryset.filter(veterinaria_id=tenant_id)
 
-        role_name = get_user_role_name(user)
         if is_client_role(role_name):
             return queryset.filter(usuario_id=user.id_usuario)
 
-        if is_privileged_role(role_name):
+        if is_admin_role(role_name) or is_receptionist_role(role_name):
             return queryset
+
+        if is_veterinarian_role(role_name):
+            related_pedido_ids = (
+                Seguimiento.objects.filter(
+                    veterinaria_id=tenant_id,
+                    cita__consultas_clinicas__usuario_veterinario_id=user.id_usuario,
+                )
+                .exclude(pedido_id__isnull=True)
+                .values_list("pedido_id", flat=True)
+                .distinct()
+            )
+            return queryset.filter(id_pedido__in=related_pedido_ids).distinct()
 
         # Rol no identificado: fallback seguro a datos propios.
         return queryset.filter(Q(usuario_id=user.id_usuario))
