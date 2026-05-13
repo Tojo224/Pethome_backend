@@ -22,15 +22,16 @@ class BackupConfig(models.Model):
     frecuencia = models.CharField(
         max_length=20, choices=FRECUENCIAS, default="SEMANAL"
     )
-    dias_retención = models.IntegerField(default=30)
-    último_backup = models.DateTimeField(null=True, blank=True)
-    próximo_backup_programado = models.DateTimeField(null=True, blank=True)
+    dias_retención = models.IntegerField(default=30, db_column="dias_retenciÃ³n")
+    último_backup = models.DateTimeField(null=True, blank=True, db_column="Ãºltimo_backup")
+    próximo_backup_programado = models.DateTimeField(null=True, blank=True, db_column="prÃ³ximo_backup_programado")
     activo = models.BooleanField(default=True)
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
     
     # Campos para personalización (cuando frecuencia == "PERSONALIZADO")
     hora_ejecucion = models.IntegerField(default=2, help_text="Hora del día 0-23")
+    minuto_ejecucion = models.IntegerField(default=15, help_text="Minuto del día 0-59")
     dias_semana = ArrayField(
         models.IntegerField(),
         default=list,

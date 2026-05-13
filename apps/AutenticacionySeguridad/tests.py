@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from django.db import connection
 from django.test import override_settings
@@ -10,6 +11,8 @@ from rest_framework_simplejwt.tokens import AccessToken
 from apps.AutenticacionySeguridad.enums.roles import RoleEnum
 from apps.AutenticacionySeguridad.models import (
 	Bitacora,
+	BackupConfig,
+	BackupRestore,
 	ComponenteSistema,
 	GrupoPermisoComponente,
 	GrupoUsuario,
@@ -20,6 +23,8 @@ from apps.AutenticacionySeguridad.models import (
 	UsuarioGrupo,
 	Veterinaria,
 )
+from apps.AutenticacionySeguridad.services import BackupScheduler
+from apps.AutenticacionySeguridad.services.backup_service import BackupService
 from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
 
 FERNET_TEST_KEY = "y-8vRXvZL5t7I8S_dZd2a0B7aKXzH_kL8BkpE9SLiW8="
@@ -792,3 +797,89 @@ class BitacoraSaaSTests(APITestCase):
 		self.assertIn("CU6_EVENTO_A", acciones)
 		self.assertIn("CU6_EVENTO_B", acciones)
 		self.assertIn("CU6_EVENTO_GLOBAL", acciones)
+
+
+@override_settings(TIME_ZONE="America/La_Paz", USE_TZ=True)
+class BackupSchedulerTests(APITestCase):
+	def setUp(self):
+		self.vet = Veterinaria.objects.create(
+			nombre="Vet Backup",
+			slug="vet-backup",
+			nit="backup-123",
+			correo="backup@example.com",
+		)
+		self.rol_admin = Rol.objects.create(
+			nombre=RoleEnum.ADMIN.value,
+			descripcion="Administrador",
+		)
+		self.user = User.objects.create(
+			correo="backup-admin@example.com",
+			role=self.rol_admin,
+			veterinaria=self.vet,
+			is_active=True,
+			is_staff=True,
+			is_superuser=True,
+		)
+
+	def test_personalized_weekly_schedule_moves_to_next_same_weekday_and_time(self):
+		config = BackupConfig.objects.create(
+			veterinaria=self.vet,
+			frecuencia="PERSONALIZADO",
+			hora_ejecucion=10,
+			minuto_ejecucion=45,
+			dias_semana=[2],
+			activo=True,
+		)
+		reference_time = datetime(
+			2026, 5, 13, 10, 45, tzinfo=ZoneInfo("America/La_Paz")
+		)
+
+		next_backup = BackupService._calculate_next_backup_with_config(
+			config,
+			reference_time=reference_time,
+		)
+		next_local = timezone.localtime(next_backup, ZoneInfo("America/La_Paz"))
+
+		self.assertEqual(next_local.weekday(), 2)
+		self.assertEqual(next_local.date().isoformat(), "2026-05-20")
+		self.assertEqual(next_local.hour, 10)
+		self.assertEqual(next_local.minute, 45)
+
+	def test_recent_successful_backup_advances_due_schedule_without_duplicate_run(self):
+		config = BackupConfig.objects.create(
+			veterinaria=self.vet,
+			frecuencia="PERSONALIZADO",
+			hora_ejecucion=10,
+			minuto_ejecucion=45,
+			dias_semana=[2],
+			activo=True,
+			próximo_backup_programado=datetime(
+				2026, 5, 13, 10, 45, tzinfo=ZoneInfo("America/La_Paz")
+			),
+		)
+		backup = BackupRestore.objects.create(
+			tipo="BACKUP",
+			estado="EXITOSO",
+			usuario=self.user,
+			veterinaria=self.vet,
+			ruta_archivo="backups/tenant/backup.sql",
+			proveedor_almacenamiento="GCS",
+		)
+		reference_time = datetime(
+			2026, 5, 13, 10, 50, tzinfo=ZoneInfo("America/La_Paz")
+		)
+		BackupRestore.objects.filter(pk=backup.pk).update(
+			fecha_hora=reference_time - timedelta(minutes=5)
+		)
+
+		should_run = BackupScheduler._should_run_backup(config, reference_time)
+		config.refresh_from_db()
+		next_local = timezone.localtime(
+			config.próximo_backup_programado,
+			ZoneInfo("America/La_Paz"),
+		)
+
+		self.assertFalse(should_run)
+		self.assertEqual(next_local.date().isoformat(), "2026-05-20")
+		self.assertEqual(next_local.hour, 10)
+		self.assertEqual(next_local.minute, 45)

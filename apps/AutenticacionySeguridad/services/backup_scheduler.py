@@ -72,8 +72,13 @@ class BackupScheduler:
                             "reason": "Backup retornó null o estado diferente a EXITOSO"
                         })
                     
-                    # Actualizar próximo backup
-                    BackupScheduler._update_next_backup_time(config)
+                    # Solo avanzar la programación cuando el backup fue exitoso.
+                    # Si falla, dejamos la fecha vencida para reintentar en el siguiente ciclo.
+                    if backup and backup.estado == "EXITOSO":
+                        BackupScheduler._update_next_backup_time(
+                            config,
+                            reference_time=backup.fecha_hora,
+                        )
                     
                     # Limpiar backups antiguos según política de retención
                     BackupService.cleanup_old_backups(
@@ -118,7 +123,19 @@ class BackupScheduler:
             True si debe ejecutarse, False en caso contrario
         """
         if not config.próximo_backup_programado:
-            logger.warning(f"BackupConfig {config.id_backup_config} sin próximo_backup_programado")
+            logger.warning(
+                f"BackupConfig {config.id_backup_config} sin próximo_backup_programado; inicializando"
+            )
+            try:
+                config.próximo_backup_programado = BackupService._calculate_next_backup_with_config(config)
+                config.save(update_fields=["próximo_backup_programado", "actualizado"])
+                logger.info(
+                    f"BackupConfig {config.id_backup_config} inicializado para {config.próximo_backup_programado}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"No se pudo inicializar próximo_backup_programado para BackupConfig {config.id_backup_config}: {str(e)}"
+                )
             return False
         
         # Verificar si el tiempo programado ya pasó
@@ -132,12 +149,16 @@ class BackupScheduler:
             tipo="BACKUP",
             estado="EXITOSO",
             fecha_hora__gte=thirty_minutes_ago
-        ).exists()
+        ).order_by("-fecha_hora").first()
         
         if recent_backup:
             logger.info(
                 f"Backup reciente encontrado para veterinaria {config.veterinaria.id_veterinaria}, "
                 f"saltando ejecución"
+            )
+            BackupScheduler._update_next_backup_time(
+                config,
+                reference_time=recent_backup.fecha_hora,
             )
             return False
         
@@ -149,19 +170,33 @@ class BackupScheduler:
         Ejecuta un backup automático para una configuración específica.
         """
         try:
-            # Obtener un usuario admin de la veterinaria para registrar la acción
-            # En backup automático, no hay usuario HTTP, así que usamos el superadmin
-            admin_user = User.objects.filter(is_superuser=True).first()
+            # Preferir un usuario administrador de la misma veterinaria.
+            # El superadmin queda como respaldo solo si no existe un admin activo del tenant.
+            admin_user = User.objects.filter(
+                veterinaria_id=config.veterinaria.id_veterinaria,
+                is_active=True,
+                is_staff=True,
+                is_superuser=False,
+            ).order_by("-date_joined").first()
             if not admin_user:
-                raise Exception("No se encontró usuario superadmin para registrar backup automático")
+                admin_user = User.objects.filter(
+                    veterinaria_id=config.veterinaria.id_veterinaria,
+                    is_active=True,
+                    role__nombre__in=["ADMIN", "SUPERADMIN"],
+                ).order_by("-date_joined").first()
+            if not admin_user:
+                admin_user = User.objects.filter(is_superuser=True, is_active=True).first()
+            if not admin_user:
+                raise Exception("No se encontró usuario administrador ni superadmin para registrar backup automático")
             
             motivo = f"Backup automático - Frecuencia: {config.frecuencia}"
-            
+
             backup = BackupService.create_backup(
                 veterinaria_id=config.veterinaria.id_veterinaria,
                 usuario=admin_user,
                 request=None,  # Sin request HTTP
                 motivo=motivo,
+                es_automatico=True,
             )
             
             return backup
@@ -171,14 +206,22 @@ class BackupScheduler:
             return None
 
     @staticmethod
-    def _update_next_backup_time(config: BackupConfig) -> None:
+    def _update_next_backup_time(
+        config: BackupConfig,
+        reference_time: Optional[datetime] = None,
+    ) -> None:
         """
         Actualiza la fecha/hora del próximo backup según la frecuencia y configuración personalizada.
         """
         try:
-            next_backup_time = BackupService._calculate_next_backup_with_config(config)
+            next_backup_time = BackupService._calculate_next_backup_with_config(
+                config,
+                reference_time=reference_time,
+            )
             config.próximo_backup_programado = next_backup_time
-            config.save()
+            # Guardar solo el campo programado evita sobreescribir `último_backup`
+            # con valores stale de la instancia en memoria.
+            config.save(update_fields=["próximo_backup_programado", "actualizado"])
             
             logger.info(
                 f"Próximo backup para veterinaria {config.veterinaria.id_veterinaria} "

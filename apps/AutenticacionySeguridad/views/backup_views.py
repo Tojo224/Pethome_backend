@@ -235,12 +235,18 @@ class BackupConfigRetrieveUpdateView(TenantViewMixin, generics.RetrieveUpdateAPI
             if serializer.is_valid():
                 frecuencia = serializer.validated_data.get("frecuencia", config.frecuencia)
                 dias_retención = serializer.validated_data.get("dias_retención", config.dias_retención)
+                hora_ejecucion = serializer.validated_data.get("hora_ejecucion", config.hora_ejecucion)
+                minuto_ejecucion = serializer.validated_data.get("minuto_ejecucion", config.minuto_ejecucion)
+                dias_semana = serializer.validated_data.get("dias_semana", config.dias_semana)
                 
                 # Usar el servicio para actualizar
                 updated_config = BackupService.update_backup_config(
                     veterinaria_id=config.veterinaria.id_veterinaria,
                     frecuencia=frecuencia,
                     dias_retención=dias_retención,
+                    hora_ejecucion=hora_ejecucion,
+                    minuto_ejecucion=minuto_ejecucion,
+                    dias_semana=dias_semana,
                     usuario=request.user,
                     request=request,
                 )
@@ -276,11 +282,17 @@ class BackupConfigRetrieveUpdateView(TenantViewMixin, generics.RetrieveUpdateAPI
             if serializer.is_valid():
                 frecuencia = serializer.validated_data.get("frecuencia", config.frecuencia)
                 dias_retención = serializer.validated_data.get("dias_retención", config.dias_retención)
+                hora_ejecucion = serializer.validated_data.get("hora_ejecucion", config.hora_ejecucion)
+                minuto_ejecucion = serializer.validated_data.get("minuto_ejecucion", config.minuto_ejecucion)
+                dias_semana = serializer.validated_data.get("dias_semana", config.dias_semana)
                 
                 updated_config = BackupService.update_backup_config(
                     veterinaria_id=config.veterinaria.id_veterinaria,
                     frecuencia=frecuencia,
                     dias_retención=dias_retención,
+                    hora_ejecucion=hora_ejecucion,
+                    minuto_ejecucion=minuto_ejecucion,
+                    dias_semana=dias_semana,
                     usuario=request.user,
                     request=request,
                 )
