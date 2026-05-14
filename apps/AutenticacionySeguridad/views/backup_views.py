@@ -230,9 +230,12 @@ class BackupConfigRetrieveUpdateView(TenantViewMixin, generics.RetrieveUpdateAPI
         tenant = getattr(self.request, "tenant", None)
         veterinaria_id = getattr(tenant, "id", None) if tenant else None
 
-        # Soporte para superadmin sin tenant activo: permite elegir veterinaria por query param.
+        # Soporte para superadmin sin tenant activo:
+        # permite elegir veterinaria por query param (GET) o body (PUT/PATCH).
         if not veterinaria_id and getattr(self.request.user, "is_superuser", False):
             veterinaria_id = self.request.query_params.get("veterinaria_id")
+            if not veterinaria_id:
+                veterinaria_id = self.request.data.get("veterinaria_id")
 
         if not veterinaria_id:
             raise ValidationError({"detail": "Tenant no encontrado.", "code": "TENANT_NO_ENCONTRADO"})
@@ -293,6 +296,9 @@ class BackupConfigRetrieveUpdateView(TenantViewMixin, generics.RetrieveUpdateAPI
                     )
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            logger.warning(f"Validación en BackupConfigRetrieveUpdateView: {str(e.detail)}")
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error en BackupConfigRetrieveUpdateView: {str(e)}")
             return Response(
@@ -339,6 +345,9 @@ class BackupConfigRetrieveUpdateView(TenantViewMixin, generics.RetrieveUpdateAPI
                     )
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            logger.warning(f"Validación en PATCH BackupConfigRetrieveUpdateView: {str(e.detail)}")
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error en PATCH BackupConfigRetrieveUpdateView: {str(e)}")
             return Response(
