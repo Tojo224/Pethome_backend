@@ -98,6 +98,51 @@ class VeterinarioTenantTests(APITestCase):
 		self.assertEqual(len(response.data), 1)
 		self.assertEqual(response.data[0]["correo"], "vet-a@example.com")
 
+	def test_veterinaria_crud_lifecycle(self):
+		self.client.force_login(self.admin)
+
+		create_response = self.client.post(
+			"/api/gestion/clinica/veterinarias/",
+			{
+				"nombre": "Clinica Nueva",
+				"slug": "clinica-nueva",
+				"nit": "123456",
+				"correo": "nuevo@example.com",
+				"telefono": "5551234",
+				"direccion": "Calle Prueba 123",
+				"logo": "logo.png",
+				"permite_auto_registro_clientes": True,
+			},
+			format="json",
+		)
+		self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+		veterinaria_id = create_response.data.get("id_veterinaria")
+		self.assertIsNotNone(veterinaria_id)
+		self.assertEqual(create_response.data.get("slug"), "clinica-nueva")
+
+		detail_response = self.client.get(f"/api/gestion/clinica/veterinarias/{veterinaria_id}/")
+		self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(detail_response.data.get("nombre"), "Clinica Nueva")
+
+		patch_response = self.client.patch(
+			f"/api/gestion/clinica/veterinarias/{veterinaria_id}/",
+			{"telefono": "5554321"},
+			format="json",
+		)
+		self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(patch_response.data.get("telefono"), "5554321")
+
+		delete_response = self.client.delete(f"/api/gestion/clinica/veterinarias/{veterinaria_id}/")
+		self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+
+		list_response = self.client.get("/api/gestion/clinica/veterinarias/")
+		self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+		self.assertFalse(any(v.get("id_veterinaria") == veterinaria_id for v in list_response.data))
+
+		veterinaria = Veterinaria.objects.filter(id_veterinaria=veterinaria_id).first()
+		self.assertIsNotNone(veterinaria)
+		self.assertFalse(veterinaria.estado)
+
 
 @override_settings(BITACORA_SECRET_KEYS=[FERNET_TEST_KEY])
 class HistorialClinicoSaaSTests(APITestCase):
