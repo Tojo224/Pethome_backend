@@ -15,6 +15,16 @@ class HasComponentPermission(BasePermission):
         "PATCH": "puede_editar",
         "DELETE": "puede_eliminar",
     }
+    client_component_fallback = {
+        "CLI_CLIENTES",
+        "CLI_MASCOTAS",
+        "CLI_CATALOGOS",
+        "CLI_HISTORIALES",
+        "SERV_CITAS",
+        "SERV_SERVICIOS",
+        "SERV_PRECIOS",
+        "MOVIL_MI_PERFIL",
+    }
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
@@ -58,6 +68,17 @@ class HasComponentPermission(BasePermission):
         )
 
         has_perm = perms.filter(**{action_field: True}).exists()
+
+        # Fallback seguro para CLIENT en mÃ³vil:
+        # permite operar componentes cliente aun si el seed base del tenant no se ejecutÃ³.
+        if not has_perm:
+            role_name = (getattr(getattr(user, "role", None), "nombre", "") or "").upper()
+            if (
+                role_name == "CLIENT"
+                and component in self.client_component_fallback
+                and getattr(user, "veterinaria_id", None) == tenant_id
+            ):
+                return True
 
         if not has_perm:
             from ..services.bitacora_register_service import BitacoraService

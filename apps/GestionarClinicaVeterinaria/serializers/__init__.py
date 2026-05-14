@@ -6,3 +6,4 @@ from .receta_serializer import RecetaSerializer
 from .tratamiento_serializer import TratamientoSerializer
 from .vacuna_aplicada_serializer import VacunaAplicadaSerializer
 from .veterinario_serializer import VeterinarioOptionSerializer
+from .veterinaria_serializer import VeterinariaSerializer

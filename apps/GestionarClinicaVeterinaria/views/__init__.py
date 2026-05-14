@@ -6,3 +6,8 @@ from .detalle_receta_view import DetalleRecetaListCreateView, DetalleRecetaDetai
 from .vacuna_aplicada_view import VacunaAplicadaListCreateView, VacunaAplicadaDetailView
 from .archivo_clinico_view import ArchivoClinicoCreateView, ArchivoClinicoUpdateView
 from .veterinario_view import VeterinarioListView
+from .veterinaria_view import (
+    VeterinariaListCreateView,
+    VeterinariaDetailView,
+    VeterinariaPlanUpdateView,
+)

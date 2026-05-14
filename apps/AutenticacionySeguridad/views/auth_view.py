@@ -28,6 +28,7 @@ from ..serializers.password_security_serializer import (
     ResetPasswordSerializer,
 )
 from ..services.auth_context_service import AuthContextService
+from ..services.base_access_seed_service import BaseAccessSeedService
 from ..services.auth_security_service import (
     change_user_password,
     consume_password_reset_token,
@@ -253,7 +254,11 @@ class MobileRegisterView(TenantViewMixin, APIView):
         )
 
         # Registro movil debe ser liviano: no reseed global por cada cliente nuevo.
-        # Solo asegura/usa CLIENT_BASE de la veterinaria y asigna al usuario creado.
+        # Solo asegura grupos/permisos base del tenant y asigna CLIENT_BASE al usuario creado.
+        BaseAccessSeedService.seed_for_veterinarias(
+            veterinarias=[veterinaria],
+            assign_existing=False,
+        )
         grupo_client_base, _ = GrupoUsuario.objects.get_or_create(
             veterinaria=veterinaria,
             rol_base="CLIENT",
