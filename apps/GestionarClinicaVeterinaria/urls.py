@@ -3,6 +3,7 @@ from django.urls import path
 from apps.GestionarClinicaVeterinaria.views.historial_clinico_view import (
     HistorialClinicoListCreateView,
     HistorialClinicoPorMascotaView,
+    HistorialClinicoDetailView,
 )
 from apps.GestionarClinicaVeterinaria.views.consulta_clinica_view import (
     ConsultaClinicaListCreateView,
@@ -31,17 +32,17 @@ from apps.GestionarClinicaVeterinaria.views.archivo_clinico_view import (
 from apps.GestionarClinicaVeterinaria.views.veterinario_view import (
     VeterinarioListView,
 )
-from apps.GestionarClinicaVeterinaria.views.veterinaria_view import (
-    VeterinariaListCreateView,
-    VeterinariaDetailView,
-    VeterinariaPlanUpdateView,
-)
 
 urlpatterns = [
     path(
         "historiales/",
         HistorialClinicoListCreateView.as_view(),
         name="historial-clinico-list-create",
+    ),
+    path(
+        "historiales/<int:id_historial_clinico>/",
+        HistorialClinicoDetailView.as_view(),
+        name="historial-clinico-detail",
     ),
     path(
         "mascotas/<int:id_mascota>/historial/",
@@ -112,20 +113,5 @@ urlpatterns = [
         "veterinarios/",
         VeterinarioListView.as_view(),
         name="veterinario-list",
-    ),
-    path(
-        "veterinarias/",
-        VeterinariaListCreateView.as_view(),
-        name="veterinaria-list-create",
-    ),
-    path(
-        "veterinarias/<int:id_veterinaria>/",
-        VeterinariaDetailView.as_view(),
-        name="veterinaria-detail",
-    ),
-    path(
-        "veterinarias/<int:id_veterinaria>/plan/",
-        VeterinariaPlanUpdateView.as_view(),
-        name="veterinaria-plan-update",
     ),
 ]
