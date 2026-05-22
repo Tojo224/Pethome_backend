@@ -199,7 +199,7 @@ class ProveedorTenantTests(APITestCase):
 		self.user.set_password("Admin12345!")
 		self.user.save()
 
-		Proveedor.objects.create(
+		self.proveedor_visible = Proveedor.objects.create(
 			nombre="Proveedor Visible",
 			contacto="Ana",
 			telefono="70000001",
@@ -207,13 +207,17 @@ class ProveedorTenantTests(APITestCase):
 			estado=True,
 			veterinaria=self.vet_a,
 		)
-		Proveedor.objects.create(
+		self.proveedor_oculto = Proveedor.objects.create(
 			nombre="Proveedor Oculto",
 			contacto="Luis",
 			telefono="70000002",
 			ubicacion="Otra ciudad",
 			estado=True,
 			veterinaria=self.vet_b,
+		)
+		self.categoria_visible = CategoriaProducto.objects.create(
+			nombre="Categoria Proveedor Visible",
+			veterinaria=self.vet_a,
 		)
 
 	def test_proveedores_list_is_tenant_scoped(self):
@@ -238,3 +242,107 @@ class ProveedorTenantTests(APITestCase):
 		self.assertEqual(response.data["id_veterinaria"], self.vet_a.id_veterinaria)
 		self.assertEqual(response.data["estado"], "Activo")
 		self.assertTrue(Proveedor.objects.filter(nombre="Proveedor Nuevo", veterinaria=self.vet_a).exists())
+
+	def test_proveedores_list_includes_records_referenced_by_tenant_products(self):
+		Producto.objects.create(
+			categoria_producto=self.categoria_visible,
+			proveedor=self.proveedor_oculto,
+			nombre="Producto con proveedor cruzado",
+			precio_compra=10,
+			precio_venta=12,
+			veterinaria=self.vet_a,
+		)
+
+		self.client.force_login(self.user)
+		response = self.client.get("/api/gestion/inventario/proveedores/")
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		nombres = {item["nombre"] for item in response.data}
+		self.assertSetEqual(nombres, {"Proveedor Visible", "Proveedor Oculto"})
+
+
+@override_settings(BITACORA_SECRET_KEYS=[FERNET_TEST_KEY])
+class CategoriaProductoTenantTests(APITestCase):
+	def setUp(self):
+		self.vet_a = Veterinaria.objects.create(
+			nombre="Vet Categorias A",
+			slug="vet-cat-a",
+			nit="401",
+			correo="cat-a@example.com",
+		)
+		self.vet_b = Veterinaria.objects.create(
+			nombre="Vet Categorias B",
+			slug="vet-cat-b",
+			nit="402",
+			correo="cat-b@example.com",
+		)
+
+		self.rol_admin = Rol.objects.create(
+			nombre=RoleEnum.ADMIN.value,
+			descripcion="Administrador",
+		)
+
+		self.user = User.objects.create(
+			correo="categorias@example.com",
+			role=self.rol_admin,
+			veterinaria=self.vet_a,
+			is_active=True,
+			is_staff=True,
+			is_superuser=False,
+		)
+		self.user.set_password("Admin12345!")
+		self.user.save()
+
+		self.categoria_visible = CategoriaProducto.objects.create(
+			nombre="Alimentos Categoria",
+			descripcion="Visible",
+			estado=True,
+			veterinaria=self.vet_a,
+		)
+		self.categoria_oculta = CategoriaProducto.objects.create(
+			nombre="Juguetes Categoria",
+			descripcion="Oculta",
+			estado=True,
+			veterinaria=self.vet_b,
+		)
+		self.proveedor_visible = Proveedor.objects.create(
+			nombre="Proveedor Categoria Visible",
+			veterinaria=self.vet_a,
+		)
+
+	def test_categorias_list_is_tenant_scoped(self):
+		self.client.force_login(self.user)
+		response = self.client.get("/api/gestion/inventario/categorias-producto/")
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(response.data), 1)
+		self.assertEqual(response.data[0]["nombre"], "Alimentos Categoria")
+		self.assertEqual(response.data[0]["estado"], "Activo")
+
+	def test_categorias_create_assigns_tenant(self):
+		self.client.force_login(self.user)
+		payload = {
+			"nombre": "Higiene Categoria",
+			"descripcion": "Productos de higiene",
+			"estado": "Activo",
+			"veterinaria": self.vet_b.id_veterinaria,
+		}
+		response = self.client.post("/api/gestion/inventario/categorias-producto/", payload, format="json")
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(response.data["id_veterinaria"], self.vet_a.id_veterinaria)
+		self.assertEqual(response.data["estado"], "Activo")
+		self.assertTrue(CategoriaProducto.objects.filter(nombre="Higiene Categoria", veterinaria=self.vet_a).exists())
+
+	def test_categorias_list_includes_records_referenced_by_tenant_products(self):
+		Producto.objects.create(
+			categoria_producto=self.categoria_oculta,
+			proveedor=self.proveedor_visible,
+			nombre="Producto con categoria cruzada",
+			precio_compra=10,
+			precio_venta=12,
+			veterinaria=self.vet_a,
+		)
+
+		self.client.force_login(self.user)
+		response = self.client.get("/api/gestion/inventario/categorias-producto/")
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		nombres = {item["nombre"] for item in response.data}
+		self.assertSetEqual(nombres, {"Alimentos Categoria", "Juguetes Categoria"})

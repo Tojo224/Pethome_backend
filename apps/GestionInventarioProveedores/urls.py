@@ -1,6 +1,9 @@
 from django.urls import path
 
-from apps.GestionInventarioProveedores.views.producto_view import ProductoViewSet
+from apps.GestionInventarioProveedores.views.producto_view import (
+    ProductoViewSet,
+    PublicProductoCatalogoListView,
+)
 from apps.GestionInventarioProveedores.views.categoria_producto_view import CategoriaProductoViewSet
 from apps.GestionInventarioProveedores.views.proveedor_view import ProveedorViewSet
 from apps.GestionInventarioProveedores.views.unidad_medida_view import UnidadMedidaListView
@@ -43,6 +46,7 @@ proveedor_detail = ProveedorViewSet.as_view({
 
 urlpatterns = [
     path("unidades-medida/", UnidadMedidaListView.as_view(), name="unidad-medida-list"),
+    path("catalogo-publico/", PublicProductoCatalogoListView, name="catalogo-publico-list"),
     path("productos/", producto_list, name="producto-list"),
     path("productos/<int:pk>/", producto_detail, name="producto-detail"),
 

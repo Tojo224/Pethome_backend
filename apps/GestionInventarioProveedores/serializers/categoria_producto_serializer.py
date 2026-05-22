@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from apps.AutenticacionySeguridad.models import Veterinaria
 from apps.GestionInventarioProveedores.models.categoria_producto import CategoriaProducto
 
 
@@ -19,6 +21,7 @@ class EstadoField(serializers.Field):
 
 
 class CategoriaProductoSerializer(serializers.ModelSerializer):
+    veterinaria = serializers.PrimaryKeyRelatedField(queryset=Veterinaria.objects.all(), required=False)
     id_veterinaria = serializers.IntegerField(source="veterinaria_id", read_only=True)
     estado = EstadoField()
 
@@ -32,4 +35,4 @@ class CategoriaProductoSerializer(serializers.ModelSerializer):
             "veterinaria",
             "id_veterinaria",
         ]
-        read_only_fields = ["id_categoria_producto"]
+        read_only_fields = ["id_categoria_producto", "id_veterinaria"]

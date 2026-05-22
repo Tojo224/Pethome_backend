@@ -39,6 +39,15 @@ class ProductoSerializer(serializers.ModelSerializer):
         required=False,
     )
     estado = EstadoField()
+    categoria_nombre = serializers.CharField(
+        source="categoria_producto.nombre",
+        read_only=True,
+    )
+    proveedor_nombre = serializers.CharField(
+        source="proveedor.nombre",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Producto
@@ -52,6 +61,19 @@ class ProductoSerializer(serializers.ModelSerializer):
             "imagen",
             "visible_catalogo",
             "estado",
+            "tipo_mascota",
+            "destacado",
+            "novedad_desde",
+            "novedad_hasta",
+            "tiene_promocion",
+            "tipo_descuento",
+            "porcentaje_descuento",
+            "monto_descuento",
+            "precio_promocional",
+            "promocion_fecha_inicio",
+            "promocion_fecha_fin",
+            "categoria_nombre",
+            "proveedor_nombre",
             "id_categoria_producto",
             "id_proveedor",
             "id_veterinaria",

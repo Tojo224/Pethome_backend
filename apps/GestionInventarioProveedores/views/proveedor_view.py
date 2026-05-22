@@ -17,7 +17,9 @@ class ProveedorViewSet(TenantViewMixin, viewsets.ModelViewSet):
         queryset = Proveedor.objects.select_related("veterinaria").order_by("-id_proveedor")
 
         if tenant_id:
-            queryset = queryset.filter(veterinaria_id=tenant_id)
+            queryset = queryset.filter(
+                Q(veterinaria_id=tenant_id) | Q(productos__veterinaria_id=tenant_id)
+            ).distinct()
         else:
             queryset = queryset.none()
 

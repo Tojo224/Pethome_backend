@@ -50,6 +50,9 @@ class ProductoViewSet(TenantViewMixin, viewsets.ModelViewSet):
         visible_catalogo = self.request.query_params.get("visible_catalogo")
         categoria_producto = self.request.query_params.get("id_categoria_producto")
         proveedor = self.request.query_params.get("id_proveedor")
+        tipo_mascota = self.request.query_params.get("tipo_mascota")
+        destacado = self.request.query_params.get("destacado")
+        con_descuento = self.request.query_params.get("con_descuento")
 
         if estado is not None:
             if estado.lower() == "true":
@@ -68,6 +71,21 @@ class ProductoViewSet(TenantViewMixin, viewsets.ModelViewSet):
 
         if proveedor:
             queryset = queryset.filter(proveedor_id=proveedor)
+
+        if tipo_mascota:
+            queryset = queryset.filter(tipo_mascota=tipo_mascota)
+
+        if destacado is not None:
+            if destacado.lower() == "true":
+                queryset = queryset.filter(destacado=True)
+            elif destacado.lower() == "false":
+                queryset = queryset.filter(destacado=False)
+
+        if con_descuento is not None:
+            if con_descuento.lower() == "true":
+                queryset = queryset.filter(tiene_promocion=True)
+            elif con_descuento.lower() == "false":
+                queryset = queryset.filter(tiene_promocion=False)
 
         if search:
             queryset = queryset.filter(
@@ -91,6 +109,55 @@ class ProductoViewSet(TenantViewMixin, viewsets.ModelViewSet):
         if not tenant_id:
             raise ValidationError({"detail": "No se pudo resolver la veterinaria actual."})
         serializer.save(veterinaria_id=tenant_id)
+
+
+class PublicProductoCatalogoViewSet(TenantViewMixin, viewsets.ReadOnlyModelViewSet):
+    serializer_class = ProductoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        tenant_id = self.get_tenant_id()
+
+        queryset = Producto.objects.select_related(
+            "categoria_producto",
+            "proveedor",
+            "veterinaria",
+        ).filter(visible_catalogo=True, estado=True).order_by("-id_producto")
+
+        if tenant_id:
+            queryset = queryset.filter(veterinaria_id=tenant_id)
+        else:
+            queryset = queryset.none()
+
+        tipo_mascota = self.request.query_params.get("tipo_mascota")
+        categoria_producto = self.request.query_params.get("id_categoria_producto")
+        destacado = self.request.query_params.get("destacado")
+        con_descuento = self.request.query_params.get("con_descuento")
+
+        if tipo_mascota:
+            queryset = queryset.filter(tipo_mascota=tipo_mascota)
+
+        if categoria_producto:
+            queryset = queryset.filter(categoria_producto_id=categoria_producto)
+
+        if destacado is not None:
+            if destacado.lower() == "true":
+                queryset = queryset.filter(destacado=True)
+            elif destacado.lower() == "false":
+                queryset = queryset.filter(destacado=False)
+
+        if con_descuento is not None:
+            if con_descuento.lower() == "true":
+                queryset = queryset.filter(tiene_promocion=True)
+            elif con_descuento.lower() == "false":
+                queryset = queryset.filter(tiene_promocion=False)
+
+        return queryset
+
+
+PublicProductoCatalogoListView = PublicProductoCatalogoViewSet.as_view({
+    "get": "list",
+})
 
 
 ProductoListView = ProductoViewSet.as_view({

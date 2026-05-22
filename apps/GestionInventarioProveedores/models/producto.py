@@ -2,6 +2,19 @@ from django.db import models
 
 
 class Producto(models.Model):
+    class TipoMascota(models.TextChoices):
+        PERRO = "PERRO", "Perro"
+        GATO = "GATO", "Gato"
+        AVE = "AVE", "Ave"
+        ROEDOR = "ROEDOR", "Roedor"
+        PEZ = "PEZ", "Pez"
+        OTRO = "OTRO", "Otro"
+
+    class TipoDescuento(models.TextChoices):
+        PORCENTAJE = "PORCENTAJE", "Porcentaje"
+        MONTO_FIJO = "MONTO_FIJO", "Monto fijo"
+        PRECIO_ESPECIAL = "PRECIO_ESPECIAL", "Precio especial"
+
     id_producto = models.AutoField(primary_key=True)
 
     categoria_producto = models.ForeignKey(
@@ -49,6 +62,46 @@ class Producto(models.Model):
     visible_catalogo = models.BooleanField(default=True)
 
     estado = models.BooleanField(default=True)
+
+    tipo_mascota = models.CharField(
+        max_length=20,
+        choices=TipoMascota.choices,
+        blank=True,
+        null=True,
+    )
+
+    destacado = models.BooleanField(default=False)
+
+    novedad_desde = models.DateField(blank=True, null=True)
+    novedad_hasta = models.DateField(blank=True, null=True)
+
+    tiene_promocion = models.BooleanField(default=False)
+    tipo_descuento = models.CharField(
+        max_length=20,
+        choices=TipoDescuento.choices,
+        blank=True,
+        null=True,
+    )
+    porcentaje_descuento = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+    )
+    monto_descuento = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+    )
+    precio_promocional = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+    )
+    promocion_fecha_inicio = models.DateField(blank=True, null=True)
+    promocion_fecha_fin = models.DateField(blank=True, null=True)
 
     veterinaria = models.ForeignKey(
         "AutenticacionySeguridad.Veterinaria",
