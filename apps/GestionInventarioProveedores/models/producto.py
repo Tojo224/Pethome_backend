@@ -3,12 +3,14 @@ from django.db import models
 
 class Producto(models.Model):
     id_producto = models.AutoField(primary_key=True)
+
     categoria_producto = models.ForeignKey(
         "GestionInventarioProveedores.CategoriaProducto",
         db_column="id_categoria_producto",
         on_delete=models.PROTECT,
         related_name="productos",
     )
+
     proveedor = models.ForeignKey(
         "GestionInventarioProveedores.Proveedor",
         db_column="id_proveedor",
@@ -17,11 +19,37 @@ class Producto(models.Model):
         blank=True,
         null=True,
     )
+
     nombre = models.CharField(max_length=150)
-    precio_compra = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    precio_venta = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+
+    descripcion = models.TextField(blank=True, null=True)
+
+    precio_compra = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+    )
+
+    precio_venta = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+    )
+
     unidad_medida = models.CharField(max_length=50, blank=True, null=True)
+
+    imagen = models.ImageField(
+        upload_to="productos/",
+        blank=True,
+        null=True,
+    )
+
+    visible_catalogo = models.BooleanField(default=True)
+
     estado = models.BooleanField(default=True)
+
     veterinaria = models.ForeignKey(
         "AutenticacionySeguridad.Veterinaria",
         db_column="id_veterinaria",

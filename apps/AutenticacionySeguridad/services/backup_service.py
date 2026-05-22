@@ -2169,11 +2169,40 @@ class BackupService:
         except ImportError:
             raise ImportError("google-cloud-storage no instalado. Ejecuta: pip install google-cloud-storage")
 
-        project_id = getattr(settings, "GCS_PROJECT_ID", None) or os.environ.get("GOOGLE_CLOUD_PROJECT")
-        if project_id:
-            return storage.Client(project=project_id)
+        invalid_credentials_path = None
+        configured_credentials_path = (
+            os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            or getattr(settings, "GCS_CREDENTIALS_FILE", "")
+        )
 
-        return storage.Client()
+        if configured_credentials_path and not os.path.isfile(configured_credentials_path):
+            invalid_credentials_path = configured_credentials_path
+            logger.warning(
+                "GOOGLE_APPLICATION_CREDENTIALS apunta a un archivo inexistente: %s. "
+                "Se intentará autenticación por credenciales por defecto.",
+                configured_credentials_path,
+            )
+            os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
+
+        project_id = getattr(settings, "GCS_PROJECT_ID", None) or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        try:
+            if project_id:
+                return storage.Client(project=project_id)
+
+            return storage.Client()
+        except Exception as exc:
+            if invalid_credentials_path:
+                raise FileNotFoundError(
+                    "No se pudo autenticar en GCS porque el archivo de credenciales no existe: "
+                    f"{invalid_credentials_path}. "
+                    "Actualiza GOOGLE_APPLICATION_CREDENTIALS con una ruta válida "
+                    "o usa 'gcloud auth application-default login'."
+                ) from exc
+
+            raise RuntimeError(
+                "No se pudo autenticar en GCS. Configura GOOGLE_APPLICATION_CREDENTIALS "
+                "con un JSON válido o ejecuta 'gcloud auth application-default login'."
+            ) from exc
 
     @staticmethod
     def _resolve_postgres_executable(configured_path: str, executable_filename: str) -> str:
