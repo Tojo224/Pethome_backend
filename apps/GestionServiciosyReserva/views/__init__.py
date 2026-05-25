@@ -13,6 +13,9 @@ from .citas_view import CitaListCreateView, CitaDetailView, CitaEstadoUpdateView
 from .rutas_view import (
 	UnidadMovilListCreateView,
 	UnidadMovilDetailView,
+	UnidadMovilAsignacionListCreateView,
+	UnidadMovilAsignacionDetailView,
+	UnidadMovilAsignacionActualView,
 	RutaProgramadaListCreateView,
 	RutaProgramadaDetailView,
 	RutaProgramadaDetalleListCreateView,

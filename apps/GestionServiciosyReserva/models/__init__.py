@@ -4,7 +4,13 @@ from .precioservicio import PrecioServicio
 from .citas import Cita
 from .especie import Especie
 from .raza import Raza
-from .rutas import UnidadMovil, RutaProgramada, DetalleRuta
+from .rutas import (
+    UnidadMovil,
+    RutaProgramada,
+    DetalleRuta,
+    UnidadMovilAsignacion,
+    UnidadMovilAsignacionPersonal,
+)
 
 __all__ = [
     "CategoriaServicio",
@@ -16,4 +22,6 @@ __all__ = [
     "UnidadMovil",
     "RutaProgramada",
     "DetalleRuta",
+    "UnidadMovilAsignacion",
+    "UnidadMovilAsignacionPersonal",
 ]

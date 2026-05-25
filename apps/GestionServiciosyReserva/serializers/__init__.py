@@ -20,3 +20,9 @@ from .rutas_serializer import (
     UnidadMovilSerializer,
     UnidadMovilWriteSerializer,
 )
+from .logistica_asignacion_serializer import (
+    UnidadMovilAsignacionPersonalReadSerializer,
+    UnidadMovilAsignacionPersonalWriteSerializer,
+    UnidadMovilAsignacionReadSerializer,
+    UnidadMovilAsignacionWriteSerializer,
+)

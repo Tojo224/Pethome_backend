@@ -1,4 +1,4 @@
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -19,9 +19,12 @@ from ..serializers import (
     DetalleRutaUpdateSerializer,
     RutaProgramadaReadSerializer,
     RutaProgramadaWriteSerializer,
+    UnidadMovilAsignacionReadSerializer,
+    UnidadMovilAsignacionWriteSerializer,
     UnidadMovilSerializer,
     UnidadMovilWriteSerializer,
 )
+from ..models import UnidadMovilAsignacion
 
 
 def build_ruta_queryset(tenant_id):
@@ -319,3 +322,118 @@ class MisRutasHoyView(TenantViewMixin, APIView):
 
         serializer = RutaProgramadaReadSerializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class UnidadMovilAsignacionListCreateView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasVeterinariaOrSuperuser]
+
+    def get_queryset(self):
+        queryset = (
+            UnidadMovilAsignacion.objects.filter(veterinaria_id=self.get_tenant_id())
+            .select_related("unidad", "veterinaria")
+            .prefetch_related("personal_asignado__usuario__role")
+            .order_by("-fecha_inicio", "-id_asignacion")
+        )
+
+        id_unidad = self.request.query_params.get("id_unidad")
+        fecha = self.request.query_params.get("fecha")
+        estado = self.request.query_params.get("estado")
+
+        if id_unidad:
+            queryset = queryset.filter(unidad_id=id_unidad)
+        if estado is not None:
+            normalized = str(estado).strip().lower()
+            if normalized in {"true", "1", "activo"}:
+                queryset = queryset.filter(estado=True)
+            elif normalized in {"false", "0", "inactivo"}:
+                queryset = queryset.filter(estado=False)
+        if fecha:
+            queryset = queryset.filter(
+                fecha_inicio__lte=fecha,
+            ).filter(Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fecha))
+
+        return queryset
+
+    def get(self, request):
+        serializer = UnidadMovilAsignacionReadSerializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = UnidadMovilAsignacionWriteSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        asignacion = serializer.save()
+        asignacion = self.get_queryset().get(pk=asignacion.pk)
+        return Response(
+            UnidadMovilAsignacionReadSerializer(asignacion).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class UnidadMovilAsignacionDetailView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasVeterinariaOrSuperuser]
+
+    def get_object(self, pk):
+        return (
+            UnidadMovilAsignacion.objects.filter(
+                pk=pk,
+                veterinaria_id=self.get_tenant_id(),
+            )
+            .select_related("unidad", "veterinaria")
+            .prefetch_related("personal_asignado__usuario__role")
+            .first()
+        )
+
+    def get(self, request, pk):
+        asignacion = self.get_object(pk)
+        if asignacion is None:
+            return Response({"detail": "Asignacion no encontrada."}, status=404)
+        return Response(UnidadMovilAsignacionReadSerializer(asignacion).data)
+
+    def patch(self, request, pk):
+        asignacion = self.get_object(pk)
+        if asignacion is None:
+            return Response({"detail": "Asignacion no encontrada."}, status=404)
+        serializer = UnidadMovilAsignacionWriteSerializer(
+            asignacion,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        asignacion = serializer.save()
+        asignacion = self.get_object(asignacion.pk)
+        return Response(UnidadMovilAsignacionReadSerializer(asignacion).data)
+
+    def delete(self, request, pk):
+        asignacion = self.get_object(pk)
+        if asignacion is None:
+            return Response({"detail": "Asignacion no encontrada."}, status=404)
+        asignacion.estado = False
+        asignacion.save(update_fields=["estado", "updated_at"])
+        return Response({"detail": "Asignacion desactivada correctamente."})
+
+
+class UnidadMovilAsignacionActualView(TenantViewMixin, APIView):
+    permission_classes = [IsAuthenticated, HasVeterinariaOrSuperuser]
+
+    def get(self, request, pk):
+        fecha = request.query_params.get("fecha") or timezone.localdate().isoformat()
+        asignacion = (
+            UnidadMovilAsignacion.objects.filter(
+                unidad_id=pk,
+                veterinaria_id=self.get_tenant_id(),
+                estado=True,
+                fecha_inicio__lte=fecha,
+            )
+            .filter(Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fecha))
+            .select_related("unidad", "veterinaria")
+            .prefetch_related("personal_asignado__usuario__role")
+            .order_by("-fecha_inicio", "-id_asignacion")
+            .first()
+        )
+        if asignacion is None:
+            return Response({"detail": "No existe asignacion activa para esta unidad."}, status=404)
+        return Response(UnidadMovilAsignacionReadSerializer(asignacion).data)
