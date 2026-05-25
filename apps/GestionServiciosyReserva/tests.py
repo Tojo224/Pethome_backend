@@ -16,15 +16,19 @@ from apps.AutenticacionySeguridad.models import (
 	UsuarioGrupo,
 	Veterinaria,
 )
-from apps.GestionClientesyMascotas.models import Especie, Mascota, Raza
+from apps.GestionClientesyMascotas.models import Mascota
 from apps.GestionServiciosyReserva.models import (
 	CategoriaServicio,
 	Cita,
 	DetalleRuta,
+	Especie,
 	PrecioServicio,
+	Raza,
 	RutaProgramada,
 	Servicio,
 	UnidadMovil,
+	UnidadMovilAsignacion,
+	UnidadMovilAsignacionPersonal,
 )
 from apps.NotificacionesySeguimiento.models import Seguimiento
 
@@ -705,3 +709,219 @@ class RutasProgramadasTests(APITestCase):
 		seguimiento = Seguimiento.objects.get(cita=self.cita_domicilio, tipo_seguimiento="RUTA")
 		self.assertEqual(seguimiento.estado_actual, "EN_CAMINO")
 		self.assertEqual(seguimiento.descripcion, "Veterinario en camino al domicilio")
+
+
+@override_settings(BITACORA_SECRET_KEYS=[FERNET_TEST_KEY])
+class UnidadMovilAsignacionTests(APITestCase):
+	def setUp(self):
+		self.vet = Veterinaria.objects.create(
+			nombre="Vet Logistica",
+			slug="vet-logistica",
+			nit="906",
+			correo="logistica@example.com",
+		)
+		self.other_vet = Veterinaria.objects.create(
+			nombre="Vet Externa",
+			slug="vet-externa",
+			nit="907",
+			correo="externa@example.com",
+		)
+		self.rol_admin = Rol.objects.create(nombre=RoleEnum.ADMIN.value, descripcion="Admin")
+		self.rol_veterinario = Rol.objects.create(
+			nombre=RoleEnum.VETERINARIAN.value,
+			descripcion="Veterinario",
+		)
+		self.rol_cliente = Rol.objects.create(nombre=RoleEnum.CLIENT.value, descripcion="Cliente")
+
+		self.admin = User.objects.create(
+			correo="admin-logistica@example.com",
+			role=self.rol_admin,
+			veterinaria=self.vet,
+			is_active=True,
+			is_staff=True,
+			is_superuser=True,
+		)
+		self.veterinario_a = User.objects.create(
+			correo="vet-a-logistica@example.com",
+			role=self.rol_veterinario,
+			veterinaria=self.vet,
+			is_active=True,
+		)
+		self.veterinario_b = User.objects.create(
+			correo="vet-b-logistica@example.com",
+			role=self.rol_veterinario,
+			veterinaria=self.vet,
+			is_active=True,
+		)
+		self.veterinario_externo = User.objects.create(
+			correo="vet-externo@example.com",
+			role=self.rol_veterinario,
+			veterinaria=self.other_vet,
+			is_active=True,
+		)
+		self.cliente_user = User.objects.create(
+			correo="cliente-logistica@example.com",
+			role=self.rol_cliente,
+			veterinaria=self.vet,
+			is_active=True,
+		)
+
+		self.unidad = UnidadMovil.objects.create(
+			nombre="Movil Logistica 01",
+			placa="LOG-101",
+			descripcion="Unidad para pruebas",
+			veterinaria=self.vet,
+			estado=True,
+		)
+		self.fecha = timezone.localdate() + timedelta(days=1)
+
+	def _build_payload(self, **overrides):
+		payload = {
+			"id_unidad": self.unidad.id_unidad,
+			"zona_nombre": "Zona Norte",
+			"zona_descripcion": "Cobertura norte",
+			"fecha_inicio": self.fecha.isoformat(),
+			"fecha_fin": self.fecha.isoformat(),
+			"hora_inicio": "08:00:00",
+			"hora_fin": "12:00:00",
+			"estado": True,
+			"personal": [
+				{
+					"id_usuario": self.veterinario_a.id_usuario,
+					"rol_operativo": "VETERINARIO",
+					"es_responsable": True,
+					"estado": True,
+				},
+				{
+					"id_usuario": self.veterinario_b.id_usuario,
+					"rol_operativo": "VETERINARIO",
+					"es_responsable": False,
+					"estado": True,
+				},
+			],
+		}
+		payload.update(overrides)
+		return payload
+
+	def test_can_create_assignment_with_multiple_veterinarians(self):
+		self.client.force_login(self.admin)
+
+		response = self.client.post(
+			"/api/unidades-moviles/asignaciones/",
+			self._build_payload(),
+			format="json",
+		)
+
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(response.data["id_unidad"], self.unidad.id_unidad)
+		self.assertEqual(response.data["zona_nombre"], "Zona Norte")
+		self.assertEqual(len(response.data["personal"]), 2)
+		self.assertTrue(any(item["es_responsable"] for item in response.data["personal"]))
+		self.assertEqual(UnidadMovilAsignacion.objects.count(), 1)
+		self.assertEqual(UnidadMovilAsignacionPersonal.objects.count(), 2)
+
+	def test_rejects_overlapping_assignment_for_same_personnel(self):
+		self.client.force_login(self.admin)
+		first = self.client.post(
+			"/api/unidades-moviles/asignaciones/",
+			self._build_payload(),
+			format="json",
+		)
+		self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+
+		other_unit = UnidadMovil.objects.create(
+			nombre="Movil Logistica 02",
+			placa="LOG-102",
+			descripcion="Unidad secundaria",
+			veterinaria=self.vet,
+			estado=True,
+		)
+		response = self.client.post(
+			"/api/unidades-moviles/asignaciones/",
+			self._build_payload(
+				id_unidad=other_unit.id_unidad,
+				zona_nombre="Zona Sur",
+				hora_inicio="10:00:00",
+				hora_fin="13:00:00",
+				personal=[
+					{
+						"id_usuario": self.veterinario_a.id_usuario,
+						"rol_operativo": "VETERINARIO",
+						"es_responsable": True,
+						"estado": True,
+					}
+				],
+			),
+			format="json",
+		)
+
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("personal", response.data)
+
+	def test_rejects_personnel_from_other_tenant(self):
+		self.client.force_login(self.admin)
+
+		response = self.client.post(
+			"/api/unidades-moviles/asignaciones/",
+			self._build_payload(
+				personal=[
+					{
+						"id_usuario": self.veterinario_a.id_usuario,
+						"rol_operativo": "VETERINARIO",
+						"es_responsable": True,
+						"estado": True,
+					},
+					{
+						"id_usuario": self.veterinario_externo.id_usuario,
+						"rol_operativo": "VETERINARIO",
+						"es_responsable": False,
+						"estado": True,
+					},
+				],
+			),
+			format="json",
+		)
+
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("personal", response.data)
+
+	def test_current_assignment_endpoint_returns_active_assignment(self):
+		self.client.force_login(self.admin)
+		create = self.client.post(
+			"/api/unidades-moviles/asignaciones/",
+			self._build_payload(),
+			format="json",
+		)
+		self.assertEqual(create.status_code, status.HTTP_201_CREATED)
+
+		response = self.client.get(
+			f"/api/unidades-moviles/{self.unidad.id_unidad}/asignacion-actual/?fecha={self.fecha.isoformat()}"
+		)
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(response.data["id_unidad"], self.unidad.id_unidad)
+		self.assertEqual(len(response.data["personal"]), 2)
+
+	def test_existing_route_flow_still_works_after_assignment_exists(self):
+		self.client.force_login(self.admin)
+		create_assignment = self.client.post(
+			"/api/unidades-moviles/asignaciones/",
+			self._build_payload(),
+			format="json",
+		)
+		self.assertEqual(create_assignment.status_code, status.HTTP_201_CREATED)
+
+		ruta_response = self.client.post(
+			"/api/rutas-programadas/",
+			{
+				"nombre": "Ruta Compatibilidad",
+				"fecha": self.fecha.isoformat(),
+				"estado": "PROGRAMADA",
+				"id_unidad": self.unidad.id_unidad,
+				"id_veterinario": self.veterinario_a.id_usuario,
+			},
+			format="json",
+		)
+
+		self.assertEqual(ruta_response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(ruta_response.data["unidad"]["id_unidad"], self.unidad.id_unidad)

@@ -7,6 +7,9 @@ from .views import (
     RutaProgramadaDetailView,
     RutaProgramadaDetalleListCreateView,
     RutaProgramadaListCreateView,
+    UnidadMovilAsignacionActualView,
+    UnidadMovilAsignacionDetailView,
+    UnidadMovilAsignacionListCreateView,
     UnidadMovilDetailView,
     UnidadMovilListCreateView,
 )
@@ -15,6 +18,21 @@ from .views import (
 urlpatterns = [
     path("unidades-moviles/", UnidadMovilListCreateView.as_view(), name="unidad-movil-list"),
     path("unidades-moviles/<int:pk>/", UnidadMovilDetailView.as_view(), name="unidad-movil-detail"),
+    path(
+        "unidades-moviles/asignaciones/",
+        UnidadMovilAsignacionListCreateView.as_view(),
+        name="unidad-movil-asignacion-list",
+    ),
+    path(
+        "unidades-moviles/asignaciones/<int:pk>/",
+        UnidadMovilAsignacionDetailView.as_view(),
+        name="unidad-movil-asignacion-detail",
+    ),
+    path(
+        "unidades-moviles/<int:pk>/asignacion-actual/",
+        UnidadMovilAsignacionActualView.as_view(),
+        name="unidad-movil-asignacion-actual",
+    ),
     path("rutas-programadas/", RutaProgramadaListCreateView.as_view(), name="ruta-programada-list"),
     path("rutas-programadas/<int:pk>/", RutaProgramadaDetailView.as_view(), name="ruta-programada-detail"),
     path(

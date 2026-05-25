@@ -117,3 +117,84 @@ class DetalleRuta(models.Model):
 
     def __str__(self):
         return f"Ruta {self.ruta_id} - Cita {self.cita_id}"
+
+
+class UnidadMovilAsignacion(models.Model):
+    id_asignacion = models.AutoField(primary_key=True)
+    unidad = models.ForeignKey(
+        "GestionServiciosyReserva.UnidadMovil",
+        db_column="id_unidad",
+        on_delete=models.CASCADE,
+        related_name="asignaciones_logisticas",
+    )
+    veterinaria = models.ForeignKey(
+        "AutenticacionySeguridad.Veterinaria",
+        db_column="id_veterinaria",
+        on_delete=models.PROTECT,
+        related_name="asignaciones_logisticas",
+    )
+    zona_nombre = models.CharField(max_length=120)
+    zona_descripcion = models.TextField(blank=True, null=True)
+    zona_geojson = models.JSONField(blank=True, null=True)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField(blank=True, null=True)
+    hora_inicio = models.TimeField(blank=True, null=True)
+    hora_fin = models.TimeField(blank=True, null=True)
+    estado = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "unidad_movil_asignacion"
+        verbose_name = "Asignacion de unidad movil"
+        verbose_name_plural = "Asignaciones de unidad movil"
+        ordering = ["-fecha_inicio", "id_asignacion"]
+
+    def __str__(self):
+        return f"{self.unidad.nombre} - {self.zona_nombre}"
+
+
+class UnidadMovilAsignacionPersonal(models.Model):
+    class RolOperativoChoices(models.TextChoices):
+        VETERINARIO = "VETERINARIO", "Veterinario"
+        CHOFER = "CHOFER", "Chofer"
+        AUXILIAR = "AUXILIAR", "Auxiliar"
+        APOYO = "APOYO", "Apoyo"
+
+    id_asignacion_personal = models.AutoField(primary_key=True)
+    asignacion = models.ForeignKey(
+        "GestionServiciosyReserva.UnidadMovilAsignacion",
+        db_column="id_asignacion",
+        on_delete=models.CASCADE,
+        related_name="personal_asignado",
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        db_column="id_usuario",
+        on_delete=models.PROTECT,
+        related_name="asignaciones_unidad_movil",
+    )
+    rol_operativo = models.CharField(
+        max_length=30,
+        choices=RolOperativoChoices.choices,
+        default=RolOperativoChoices.VETERINARIO,
+    )
+    es_responsable = models.BooleanField(default=False)
+    estado = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "unidad_movil_asignacion_personal"
+        verbose_name = "Personal asignado a unidad movil"
+        verbose_name_plural = "Personal asignado a unidades moviles"
+        ordering = ["id_asignacion_personal"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asignacion", "usuario"],
+                name="uq_asignacion_personal_usuario",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.usuario_id} en asignacion {self.asignacion_id}"
