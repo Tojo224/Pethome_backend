@@ -2,10 +2,14 @@ from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
+import logging
 
 from apps.AutenticacionySeguridad.mixins.tenant_mixins import TenantViewMixin
 from apps.GestionInventarioProveedores.models.categoria_producto import CategoriaProducto
 from apps.GestionInventarioProveedores.serializers.categoria_producto_serializer import CategoriaProductoSerializer
+
+
+logger = logging.getLogger(__name__)
 
 
 class CategoriaProductoViewSet(TenantViewMixin, viewsets.ModelViewSet):
@@ -44,12 +48,24 @@ class CategoriaProductoViewSet(TenantViewMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         tenant_id = self.get_tenant_id()
+        logger.debug(
+            "CategoriaProductoViewSet.perform_create path=%s tenant_id=%s user_id=%s",
+            getattr(self.request, "path", ""),
+            tenant_id,
+            getattr(getattr(self.request, "user", None), "id_usuario", None),
+        )
         if not tenant_id:
             raise ValidationError({"detail": "No se pudo resolver la veterinaria actual."})
         serializer.save(veterinaria_id=tenant_id)
 
     def perform_update(self, serializer):
         tenant_id = self.get_tenant_id()
+        logger.debug(
+            "CategoriaProductoViewSet.perform_update path=%s tenant_id=%s user_id=%s",
+            getattr(self.request, "path", ""),
+            tenant_id,
+            getattr(getattr(self.request, "user", None), "id_usuario", None),
+        )
         if not tenant_id:
             raise ValidationError({"detail": "No se pudo resolver la veterinaria actual."})
         serializer.save(veterinaria_id=tenant_id)

@@ -21,6 +21,12 @@ class Proveedor(models.Model):
         db_table = "proveedor"
         verbose_name = "Proveedor"
         verbose_name_plural = "Proveedores"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["veterinaria", "nombre"],
+                name="uq_proveedor_veterinaria_nombre",
+            )
+        ]
 
     def __str__(self):
         return self.nombre
