@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("GestionInventarioProveedores", "0006_categoria_producto_unique_por_veterinaria"),
+        ("GestionInventarioProveedores", "0007_categoria_producto_unique_por_veterinaria"),
     ]
 
     operations = [

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db.models import DecimalField, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from rest_framework import viewsets
@@ -13,6 +15,7 @@ from apps.GestionInventarioProveedores.serializers.inventario_stock_serializer i
 class InventarioStockViewSet(TenantViewMixin, viewsets.ViewSet):
     permission_classes = [IsAuthenticated, HasComponentPermission]
     rbac_component = "INV_PRODUCTOS"
+    DECIMAL_SUM_FIELD = DecimalField(max_digits=12, decimal_places=2)
 
     def general(self, request):
         tenant_id = self.get_tenant_id()
@@ -65,22 +68,24 @@ class InventarioStockViewSet(TenantViewMixin, viewsets.ViewSet):
             .values("producto_id", "producto__nombre")
             .annotate(
                 stock_total=Coalesce(
-                    Sum("cantidad"),
-                    Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+                    Sum("cantidad", output_field=self.DECIMAL_SUM_FIELD),
+                    Value(Decimal("0.00"), output_field=self.DECIMAL_SUM_FIELD),
                 ),
                 stock_general=Coalesce(
                     Sum(
                         "cantidad",
                         filter=Q(punto_inventario__tipo=PuntoInventario.TipoPunto.ALMACEN_GENERAL),
+                        output_field=self.DECIMAL_SUM_FIELD,
                     ),
-                    Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+                    Value(Decimal("0.00"), output_field=self.DECIMAL_SUM_FIELD),
                 ),
                 stock_movil=Coalesce(
                     Sum(
                         "cantidad",
                         filter=Q(punto_inventario__tipo=PuntoInventario.TipoPunto.UNIDAD_MOVIL),
+                        output_field=self.DECIMAL_SUM_FIELD,
                     ),
-                    Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+                    Value(Decimal("0.00"), output_field=self.DECIMAL_SUM_FIELD),
                 ),
             )
             .order_by("producto_id")
