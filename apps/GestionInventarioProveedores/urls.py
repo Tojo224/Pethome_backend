@@ -7,6 +7,9 @@ from apps.GestionInventarioProveedores.views.producto_view import (
 from apps.GestionInventarioProveedores.views.categoria_producto_view import CategoriaProductoViewSet
 from apps.GestionInventarioProveedores.views.proveedor_view import ProveedorViewSet
 from apps.GestionInventarioProveedores.views.unidad_medida_view import UnidadMedidaListView
+from apps.GestionInventarioProveedores.views.inventario_movimiento_view import InventarioMovimientoViewSet
+from apps.GestionInventarioProveedores.views.inventario_stock_view import InventarioStockViewSet
+from apps.GestionInventarioProveedores.views.punto_inventario_view import PuntoInventarioViewSet
 
 producto_list = ProductoViewSet.as_view({
     "get": "list",
@@ -44,6 +47,35 @@ proveedor_detail = ProveedorViewSet.as_view({
     "delete": "destroy",
 })
 
+movimiento_list = InventarioMovimientoViewSet.as_view({
+    "get": "list",
+    "post": "create",
+})
+
+movimiento_detail = InventarioMovimientoViewSet.as_view({
+    "get": "retrieve",
+})
+
+stock_general = InventarioStockViewSet.as_view({
+    "get": "general",
+})
+
+stock_unidades_moviles = InventarioStockViewSet.as_view({
+    "get": "unidades_moviles",
+})
+
+stock_alertas = InventarioStockViewSet.as_view({
+    "get": "alertas",
+})
+
+stock_disponibilidad = InventarioStockViewSet.as_view({
+    "get": "disponibilidad",
+})
+
+punto_inventario_list = PuntoInventarioViewSet.as_view({
+    "get": "list",
+})
+
 urlpatterns = [
     path("unidades-medida/", UnidadMedidaListView.as_view(), name="unidad-medida-list"),
     path("catalogo-publico/", PublicProductoCatalogoListView, name="catalogo-publico-list"),
@@ -70,4 +102,11 @@ urlpatterns = [
         proveedor_detail,
         name="proveedor-detail",
     ),
+    path("movimientos/", movimiento_list, name="inventario-movimiento-list"),
+    path("movimientos/<int:pk>/", movimiento_detail, name="inventario-movimiento-detail"),
+    path("stock/general/", stock_general, name="inventario-stock-general"),
+    path("stock/unidades-moviles/", stock_unidades_moviles, name="inventario-stock-unidades-moviles"),
+    path("stock/alertas/", stock_alertas, name="inventario-stock-alertas"),
+    path("stock/productos/<int:pk>/disponibilidad/", stock_disponibilidad, name="inventario-stock-disponibilidad"),
+    path("puntos-inventario/", punto_inventario_list, name="inventario-puntos-list"),
 ]

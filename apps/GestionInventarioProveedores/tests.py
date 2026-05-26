@@ -12,7 +12,14 @@ from apps.AutenticacionySeguridad.models import (
 	UsuarioGrupo,
 	Veterinaria,
 )
-from apps.GestionInventarioProveedores.models import CategoriaProducto, Producto, Proveedor
+from apps.GestionInventarioProveedores.models import (
+	CategoriaProducto,
+	MovimientoInventario,
+	Producto,
+	Proveedor,
+	PuntoInventario,
+	StockPunto,
+)
 
 FERNET_TEST_KEY = "y-8vRXvZL5t7I8S_dZd2a0B7aKXzH_kL8BkpE9SLiW8="
 
@@ -346,3 +353,156 @@ class CategoriaProductoTenantTests(APITestCase):
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 		nombres = {item["nombre"] for item in response.data}
 		self.assertSetEqual(nombres, {"Alimentos Categoria", "Juguetes Categoria"})
+
+
+@override_settings(BITACORA_SECRET_KEYS=[FERNET_TEST_KEY])
+class MovimientoInventarioTests(APITestCase):
+	def setUp(self):
+		self.vet = Veterinaria.objects.create(
+			nombre="Vet Movimiento",
+			slug="vet-mov",
+			nit="501",
+			correo="mov@example.com",
+		)
+		self.vet_otra = Veterinaria.objects.create(
+			nombre="Vet Otra",
+			slug="vet-otra",
+			nit="502",
+			correo="otra@example.com",
+		)
+
+		self.rol_admin = Rol.objects.create(
+			nombre=RoleEnum.ADMIN.value,
+			descripcion="Administrador",
+		)
+		self.user = User.objects.create(
+			correo="mov-admin@example.com",
+			role=self.rol_admin,
+			veterinaria=self.vet,
+			is_active=True,
+		)
+		self.user.set_password("Admin12345!")
+		self.user.save()
+
+		component = ComponenteSistema.objects.create(
+			codigo="INV_PRODUCTOS",
+			nombre="Inventario",
+			tipo="FORMULARIO",
+			modulo="inventario",
+			plataforma="WEB",
+			estado=True,
+		)
+		grupo = GrupoUsuario.objects.create(
+			nombre="Inventario Admin",
+			descripcion="Grupo inventario",
+			veterinaria=self.vet,
+		)
+		UsuarioGrupo.objects.create(usuario=self.user, grupo=grupo)
+		GrupoPermisoComponente.objects.create(
+			grupo=grupo,
+			componente=component,
+			puede_ver=True,
+			puede_crear=True,
+			estado=True,
+		)
+
+		self.categoria = CategoriaProducto.objects.create(nombre="Farmacia", veterinaria=self.vet)
+		self.proveedor = Proveedor.objects.create(nombre="Prov", veterinaria=self.vet)
+		self.producto = Producto.objects.create(
+			categoria_producto=self.categoria,
+			proveedor=self.proveedor,
+			nombre="Antibiotico",
+			precio_compra=10,
+			precio_venta=20,
+			veterinaria=self.vet,
+		)
+
+		self.punto_origen = PuntoInventario.objects.create(
+			veterinaria=self.vet,
+			tipo=PuntoInventario.TipoPunto.ALMACEN_GENERAL,
+			nombre="Almacen Central",
+		)
+		self.punto_destino = PuntoInventario.objects.create(
+			veterinaria=self.vet,
+			tipo=PuntoInventario.TipoPunto.SUCURSAL,
+			nombre="Sucursal Norte",
+		)
+		StockPunto.objects.create(
+			veterinaria=self.vet,
+			producto=self.producto,
+			punto_inventario=self.punto_origen,
+			cantidad=10,
+			cantidad_minima=2,
+		)
+
+		self.punto_otro_tenant = PuntoInventario.objects.create(
+			veterinaria=self.vet_otra,
+			tipo=PuntoInventario.TipoPunto.ALMACEN_GENERAL,
+			nombre="Almacen Externo",
+		)
+
+	def test_transferencia_actualiza_stock_y_registra_movimiento(self):
+		self.client.force_login(self.user)
+		response = self.client.post(
+			"/api/gestion/inventario/movimientos/",
+			{
+				"tipo": "TRANSFERENCIA",
+				"id_producto": self.producto.id_producto,
+				"cantidad": "3.00",
+				"id_punto_origen": self.punto_origen.id_punto,
+				"id_punto_destino": self.punto_destino.id_punto,
+			},
+			format="json",
+		)
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		self.assertTrue(MovimientoInventario.objects.filter(veterinaria=self.vet, tipo="TRANSFERENCIA").exists())
+		stock_origen = StockPunto.objects.get(producto=self.producto, punto_inventario=self.punto_origen)
+		stock_destino = StockPunto.objects.get(producto=self.producto, punto_inventario=self.punto_destino)
+		self.assertEqual(float(stock_origen.cantidad), 7.0)
+		self.assertEqual(float(stock_destino.cantidad), 3.0)
+
+	def test_movimiento_stock_insuficiente(self):
+		self.client.force_login(self.user)
+		response = self.client.post(
+			"/api/gestion/inventario/movimientos/",
+			{
+				"tipo": "SALIDA",
+				"id_producto": self.producto.id_producto,
+				"cantidad": "999.00",
+				"id_punto_origen": self.punto_origen.id_punto,
+			},
+			format="json",
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertEqual(response.data["detail"], "Stock insuficiente para realizar el movimiento.")
+
+	def test_no_permite_punto_de_otro_tenant(self):
+		self.client.force_login(self.user)
+		response = self.client.post(
+			"/api/gestion/inventario/movimientos/",
+			{
+				"tipo": "SALIDA",
+				"id_producto": self.producto.id_producto,
+				"cantidad": "1.00",
+				"id_punto_origen": self.punto_otro_tenant.id_punto,
+			},
+			format="json",
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("id_punto_origen", response.data)
+
+	def test_lista_puntos_inventario_filtra_por_tenant(self):
+		self.client.force_login(self.user)
+		response = self.client.get("/api/gestion/inventario/puntos-inventario/")
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		nombres = {x["nombre"] for x in response.data}
+		self.assertIn("Almacen Central", nombres)
+		self.assertIn("Sucursal Norte", nombres)
+		self.assertNotIn("Almacen Externo", nombres)
+
+	def test_stock_general_endpoint(self):
+		self.client.force_login(self.user)
+		response = self.client.get("/api/gestion/inventario/stock/general/")
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertGreaterEqual(len(response.data), 1)
+		self.assertEqual(response.data[0]["punto_tipo"], "ALMACEN_GENERAL")
