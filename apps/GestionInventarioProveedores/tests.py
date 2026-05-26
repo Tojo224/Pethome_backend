@@ -81,10 +81,12 @@ class ProductoTenantTests(APITestCase):
 			nombre="Medicamentos",
 			veterinaria=self.vet_a,
 		)
+		self.categoria_a = categoria_a
 		proveedor_a = Proveedor.objects.create(
 			nombre="Proveedor A",
 			veterinaria=self.vet_a,
 		)
+		self.proveedor_a = proveedor_a
 		Producto.objects.create(
 			categoria_producto=categoria_a,
 			proveedor=proveedor_a,
@@ -173,6 +175,48 @@ class ProductoTenantTests(APITestCase):
 		self.assertFalse(producto.estado)
 		self.assertEqual(response.data["estado"], "Inactivo")
 
+	def test_productos_repeated_name_category_and_provider_are_rejected(self):
+		self.client.force_login(self.user)
+		response = self.client.post(
+			"/api/gestion/inventario/productos/",
+			{
+				"nombre": "Antiparasitario",
+				"descripcion": "Duplicado",
+				"precio_compra": 11,
+				"precio_venta": 16,
+				"unidad_medida": "Unidad",
+				"visible_catalogo": True,
+				"estado": "Activo",
+				"id_categoria_producto": self.categoria_a.id_categoria_producto,
+				"id_proveedor": self.proveedor_a.id_proveedor,
+			},
+			format="json",
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("nombre", response.data)
+
+	def test_productos_reject_zero_prices(self):
+		self.client.force_login(self.user)
+		response = self.client.post(
+			"/api/gestion/inventario/productos/",
+			{
+				"nombre": "Producto Cero",
+				"descripcion": "No válido",
+				"precio_compra": 0,
+				"precio_venta": 0,
+				"unidad_medida": "Unidad",
+				"visible_catalogo": True,
+				"estado": "Activo",
+				"id_categoria_producto": self.categoria_a.id_categoria_producto,
+				"id_proveedor": self.proveedor_a.id_proveedor,
+			},
+			format="json",
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertTrue(
+			"precio_compra" in response.data or "precio_venta" in response.data,
+		)
+
 
 @override_settings(BITACORA_SECRET_KEYS=[FERNET_TEST_KEY])
 class ProveedorTenantTests(APITestCase):
@@ -226,6 +270,22 @@ class ProveedorTenantTests(APITestCase):
 			nombre="Categoria Proveedor Visible",
 			veterinaria=self.vet_a,
 		)
+
+	def test_proveedores_repeated_name_are_rejected(self):
+		self.client.force_login(self.user)
+		response = self.client.post(
+			"/api/gestion/inventario/proveedores/",
+			{
+				"nombre": "Proveedor Visible",
+				"contacto": "Otro",
+				"telefono": "70000003",
+				"ubicacion": "Zona Norte",
+				"estado": "Activo",
+			},
+			format="json",
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("nombre", response.data)
 
 	def test_proveedores_list_is_tenant_scoped(self):
 		self.client.force_login(self.user)

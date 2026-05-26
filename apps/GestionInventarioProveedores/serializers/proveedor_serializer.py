@@ -40,3 +40,26 @@ class ProveedorSerializer(serializers.ModelSerializer):
             "id_veterinaria",
         ]
         read_only_fields = ["id_proveedor", "id_veterinaria"]
+
+    def validate_nombre(self, value):
+        nombre = (value or "").strip()
+        if not nombre:
+            raise serializers.ValidationError("El nombre es requerido")
+
+        request = self.context.get("request")
+        tenant_id = None
+        if request is not None:
+            tenant = getattr(request, "tenant", None)
+            tenant_id = getattr(tenant, "id", None) or getattr(request.user, "veterinaria_id", None)
+
+        if tenant_id:
+            queryset = Proveedor.objects.filter(veterinaria_id=tenant_id, nombre__iexact=nombre)
+            if self.instance is not None:
+                queryset = queryset.exclude(pk=self.instance.pk)
+
+            if queryset.exists():
+                raise serializers.ValidationError(
+                    "Ya existe un proveedor con ese nombre en esta veterinaria."
+                )
+
+        return nombre

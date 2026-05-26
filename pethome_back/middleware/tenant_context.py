@@ -1,8 +1,13 @@
 from dataclasses import dataclass
 from typing import Optional
 
+import logging
+
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -30,6 +35,11 @@ class TenantContextMiddleware:
                 try:
                     validated = self.jwt_auth.get_validated_token(raw_token)
                     tenant = self._from_token(validated)
+                    logger.debug(
+                        "TenantContextMiddleware: tenant from token path=%s tenant_id=%s",
+                        getattr(request, "path", ""),
+                        getattr(tenant, "id", None),
+                    )
                 except (InvalidToken, TokenError):
                     tenant = None
 
@@ -37,8 +47,20 @@ class TenantContextMiddleware:
             user = getattr(request, "user", None)
             if user is not None and getattr(user, "is_authenticated", False):
                 tenant = self._from_user(user)
+                logger.debug(
+                    "TenantContextMiddleware: tenant from user path=%s user_id=%s tenant_id=%s",
+                    getattr(request, "path", ""),
+                    getattr(user, "id_usuario", None),
+                    getattr(tenant, "id", None),
+                )
 
         request.tenant = tenant
+        logger.debug(
+            "TenantContextMiddleware: final tenant path=%s tenant_id=%s user_id=%s",
+            getattr(request, "path", ""),
+            getattr(tenant, "id", None),
+            getattr(getattr(request, "user", None), "id_usuario", None),
+        )
 
     def _from_user(self, user) -> Optional[TenantContext]:
         vet_id = getattr(user, "veterinaria_id", None)

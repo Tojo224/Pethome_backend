@@ -116,6 +116,12 @@ class Producto(models.Model):
         db_table = "producto"
         verbose_name = "Producto"
         verbose_name_plural = "Productos"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["veterinaria", "nombre", "categoria_producto"],
+                name="uq_producto_veterinaria_nombre_categoria",
+            )
+        ]
 
     def __str__(self):
         return self.nombre
