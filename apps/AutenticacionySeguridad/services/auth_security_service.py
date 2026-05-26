@@ -92,7 +92,7 @@ def validate_login_password(user: User | None, raw_password: str) -> User:
             user = register_failed_login(user.id_usuario)
             if user.bloqueado_hasta and user.bloqueado_hasta > timezone.now():
                 ensure_user_not_blocked(user)
-        raise AuthenticationFailed(
+        raise ValidationError(
             detail={"detail": GENERIC_LOGIN_MESSAGE, "code": "LOGIN_FALLIDO"}
         )
     ensure_user_not_blocked(user)

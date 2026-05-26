@@ -12,6 +12,7 @@ from .grupo_permiso_componente import GrupoPermisoComponente
 from .backup_restore import BackupRestore
 from .backup_config import BackupConfig
 from .password_reset_token import PasswordResetToken
+from .billing_demo_event import BillingDemoEvent
 
 __all__ = [
     "Rol",
@@ -28,4 +29,5 @@ __all__ = [
     "BackupRestore",
     "BackupConfig",
     "PasswordResetToken",
+    "BillingDemoEvent",
 ]

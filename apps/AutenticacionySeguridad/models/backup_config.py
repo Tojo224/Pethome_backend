@@ -22,9 +22,9 @@ class BackupConfig(models.Model):
     frecuencia = models.CharField(
         max_length=20, choices=FRECUENCIAS, default="SEMANAL"
     )
-    dias_retención = models.IntegerField(default=30, db_column="dias_retenciÃ³n")
-    último_backup = models.DateTimeField(null=True, blank=True, db_column="Ãºltimo_backup")
-    próximo_backup_programado = models.DateTimeField(null=True, blank=True, db_column="prÃ³ximo_backup_programado")
+    dias_retención = models.IntegerField(default=30, db_column="dias_retención")
+    último_backup = models.DateTimeField(null=True, blank=True, db_column="último_backup")
+    próximo_backup_programado = models.DateTimeField(null=True, blank=True, db_column="próximo_backup_programado")
     activo = models.BooleanField(default=True)
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
@@ -46,3 +46,4 @@ class BackupConfig(models.Model):
 
     def __str__(self):
         return f"Backup Config - {self.veterinaria.nombre} ({self.frecuencia})"
+

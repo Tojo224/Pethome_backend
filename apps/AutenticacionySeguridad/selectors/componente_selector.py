@@ -42,6 +42,36 @@ class ComponenteSelector:
                 for c in componentes
             ]
 
+        role_name = (getattr(getattr(user, "role", None), "nombre", "") or "").upper()
+        if role_name == "ADMIN":
+            componentes = ComponenteSistema.objects.filter(
+                estado=True,
+                plataforma__in=[plataforma, "AMBOS"],
+            ).order_by("orden")
+            return [
+                {
+                    "id_componente": c.id_componente,
+                    "codigo": c.codigo,
+                    "nombre": c.nombre,
+                    "tipo": c.tipo,
+                    "modulo": c.modulo,
+                    "ruta": c.ruta,
+                    "plataforma": c.plataforma,
+                    "id_padre": c.padre_id,
+                    "orden": c.orden,
+                    "permisos": {
+                        "ver": True,
+                        "crear": True,
+                        "editar": True,
+                        "eliminar": True,
+                        "exportar": True,
+                        "ejecutar": True,
+                    },
+                    "_obj": c,
+                }
+                for c in componentes
+            ]
+
         permisos_queryset = (
             GrupoPermisoComponente.objects.filter(
                 estado=True,

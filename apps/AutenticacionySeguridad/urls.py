@@ -12,6 +12,12 @@ from apps.AutenticacionySeguridad.views.auth_view import (
     ForgotPasswordView,
     ResetPasswordView,
     ChangePasswordView,
+    PublicTrialSignupView,
+    PublicDemoCheckoutStartView,
+    PublicDemoCheckoutConfirmView,
+    StripeWebhookView,
+    DemoUpgradeStartView,
+    DemoUpgradeConfirmView,
 )
 from .views.perfil_views import (
     UsuarioListCreateView,
@@ -54,6 +60,12 @@ urlpatterns = [
     path("componentes/", ComponentesView.as_view(), name="auth-componentes"),
     path("public/veterinarias/", PublicVeterinariaListView.as_view(), name="public-veterinaria-list"),
     path("public/veterinarias/<slug:slug>/", PublicVeterinariaView.as_view(), name="public-veterinaria-detail"),
+    path("public/trial-signup/", PublicTrialSignupView.as_view(), name="public-trial-signup"),
+    path("public/checkout-demo/start/", PublicDemoCheckoutStartView.as_view(), name="public-checkout-demo-start"),
+    path("public/checkout-demo/confirm/", PublicDemoCheckoutConfirmView.as_view(), name="public-checkout-demo-confirm"),
+    path("public/stripe/webhook/", StripeWebhookView.as_view(), name="public-stripe-webhook"),
+    path("billing/upgrade-demo/start/", DemoUpgradeStartView.as_view(), name="billing-upgrade-demo-start"),
+    path("billing/upgrade-demo/confirm/", DemoUpgradeConfirmView.as_view(), name="billing-upgrade-demo-confirm"),
 
     path('usuarios/', UsuarioListCreateView.as_view(), name='usuario-list-create'),
     path('usuarios/clientes/', UsuarioClienteListView.as_view(), name='usuario-clientes-list'),

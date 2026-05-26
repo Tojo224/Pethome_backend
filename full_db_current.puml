@@ -1,0 +1,589 @@
+@startuml
+hide methods
+hide stereotypes
+skinparam linetype ortho
+entity "token_blacklist_outstandingtoken" as OutstandingToken {
+  id: BigAutoField <<PK>> NOT NULL
+  user_id: ForeignKey
+  jti: CharField NOT NULL
+  token: TextField NOT NULL
+  created_at: DateTimeField
+  expires_at: DateTimeField NOT NULL
+}
+entity "token_blacklist_blacklistedtoken" as BlacklistedToken {
+  id: BigAutoField <<PK>> NOT NULL
+  token_id: OneToOneField NOT NULL
+  blacklisted_at: DateTimeField NOT NULL
+}
+entity "roles" as Rol {
+  id_rol: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  descripcion: TextField
+}
+entity "usuarios" as User {
+  password: CharField NOT NULL
+  last_login: DateTimeField
+  is_superuser: BooleanField NOT NULL
+  id_usuario: AutoField <<PK>> NOT NULL
+  correo: CharField NOT NULL
+  id_rol: ForeignKey NOT NULL
+  id_veterinaria: ForeignKey
+  is_active: BooleanField NOT NULL
+  is_staff: BooleanField NOT NULL
+  date_joined: DateTimeField NOT NULL
+  intentos_fallidos: PositiveSmallIntegerField NOT NULL
+  bloqueado_hasta: DateTimeField
+  groups: ManyToManyField NOT NULL
+  user_permissions: ManyToManyField NOT NULL
+}
+entity "perfil" as Perfil {
+  id_perfil: AutoField <<PK>> NOT NULL
+  id_usuario: OneToOneField NOT NULL
+  nombre: CharField NOT NULL
+  telefono: CharField
+  direccion: CharField
+  estado: BooleanField NOT NULL
+  fecha_creacion: DateTimeField NOT NULL
+}
+entity "bitacora" as Bitacora {
+  id_bitacora: AutoField <<PK>> NOT NULL
+  id_veterinaria: ForeignKey
+  fecha_hora: DateTimeField NOT NULL
+  payload: BinaryField NOT NULL
+}
+entity "veterinaria" as Veterinaria {
+  id_veterinaria: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  slug: SlugField NOT NULL
+  nit: CharField
+  correo: CharField
+  telefono: CharField
+  direccion: TextField
+  logo: CharField
+  estado: BooleanField NOT NULL
+  permite_auto_registro_clientes: BooleanField NOT NULL
+  fecha_creacion: DateTimeField NOT NULL
+  owner_user_id: ForeignKey
+}
+entity "plan_suscripcion" as PlanSuscripcion {
+  id_plan: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  descripcion: TextField
+  precio_mensual: DecimalField NOT NULL
+  limite_usuarios: IntegerField NOT NULL
+  limite_mascotas: IntegerField NOT NULL
+  permite_app_movil: BooleanField NOT NULL
+  permite_reportes: BooleanField NOT NULL
+  permite_backup: BooleanField NOT NULL
+  estado: BooleanField NOT NULL
+}
+entity "suscripcion" as Suscripcion {
+  id_suscripcion: AutoField <<PK>> NOT NULL
+  fecha_inicio: DateField NOT NULL
+  fecha_fin: DateField
+  estado_suscripcion: CharField NOT NULL
+  renovacion_automatica: BooleanField NOT NULL
+  fecha_creacion: DateTimeField NOT NULL
+  fecha_actualizacion: DateTimeField NOT NULL
+  metodo_pago: CharField
+  fecha_pago: DateTimeField
+  id_veterinaria: ForeignKey NOT NULL
+  id_plan: ForeignKey NOT NULL
+}
+entity "grupo_usuario" as GrupoUsuario {
+  id_grupo: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  descripcion: TextField
+  estado: BooleanField NOT NULL
+  es_base: BooleanField NOT NULL
+  rol_base: CharField
+  fecha_creacion: DateTimeField NOT NULL
+  id_veterinaria: ForeignKey
+}
+entity "usuario_grupo" as UsuarioGrupo {
+  id_usuario_grupo: AutoField <<PK>> NOT NULL
+  fecha_asignacion: DateTimeField NOT NULL
+  estado: BooleanField NOT NULL
+  id_usuario: ForeignKey NOT NULL
+  id_grupo: ForeignKey NOT NULL
+}
+entity "componente_sistema" as ComponenteSistema {
+  id_componente: AutoField <<PK>> NOT NULL
+  codigo: CharField NOT NULL
+  nombre: CharField NOT NULL
+  tipo: CharField NOT NULL
+  modulo: CharField
+  ruta: CharField
+  plataforma: CharField NOT NULL
+  id_padre: ForeignKey
+  orden: IntegerField NOT NULL
+  estado: BooleanField NOT NULL
+}
+entity "grupo_permiso_componente" as GrupoPermisoComponente {
+  id_permiso_componente: AutoField <<PK>> NOT NULL
+  puede_ver: BooleanField NOT NULL
+  puede_crear: BooleanField NOT NULL
+  puede_editar: BooleanField NOT NULL
+  puede_eliminar: BooleanField NOT NULL
+  puede_exportar: BooleanField NOT NULL
+  puede_ejecutar: BooleanField NOT NULL
+  estado: BooleanField NOT NULL
+  id_grupo: ForeignKey NOT NULL
+  id_componente: ForeignKey NOT NULL
+}
+entity "backup_restore" as BackupRestore {
+  id_backup_restore: AutoField <<PK>> NOT NULL
+  tipo: CharField NOT NULL
+  fecha_hora: DateTimeField NOT NULL
+  ruta_archivo: CharField NOT NULL
+  proveedor_almacenamiento: CharField
+  estado: CharField NOT NULL
+  hash_archivo: CharField
+  motivo: TextField
+  id_usuario: ForeignKey NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "backup_config" as BackupConfig {
+  id_backup_config: AutoField <<PK>> NOT NULL
+  id_veterinaria: OneToOneField NOT NULL
+  frecuencia: CharField NOT NULL
+  dias_retención: IntegerField NOT NULL
+  último_backup: DateTimeField
+  próximo_backup_programado: DateTimeField
+  activo: BooleanField NOT NULL
+  creado: DateTimeField NOT NULL
+  actualizado: DateTimeField NOT NULL
+  hora_ejecucion: IntegerField NOT NULL
+  minuto_ejecucion: IntegerField NOT NULL
+  dias_semana: ArrayField NOT NULL
+}
+entity "password_reset_tokens" as PasswordResetToken {
+  id_password_reset_token: BigAutoField <<PK>> NOT NULL
+  usuario_id: ForeignKey NOT NULL
+  token: CharField NOT NULL
+  expiracion: DateTimeField NOT NULL
+  usado: BooleanField NOT NULL
+  fecha_creacion: DateTimeField NOT NULL
+}
+entity "billing_demo_event" as BillingDemoEvent {
+  id_billing_demo_event: AutoField <<PK>> NOT NULL
+  checkout_token: CharField NOT NULL
+  event_type: CharField NOT NULL
+  status: CharField NOT NULL
+  id_plan: ForeignKey NOT NULL
+  id_veterinaria: ForeignKey
+  id_usuario: ForeignKey
+  payload: JSONField NOT NULL
+  payment_mode: CharField NOT NULL
+  stripe_session_id: CharField
+  stripe_payment_intent_id: CharField
+  stripe_event_id: CharField
+  amount: DecimalField
+  currency: CharField
+  expires_at: DateTimeField NOT NULL
+  confirmed_at: DateTimeField
+  created_at: DateTimeField NOT NULL
+  updated_at: DateTimeField NOT NULL
+}
+entity "mascota" as Mascota {
+  id_mascota: AutoField <<PK>> NOT NULL
+  id_usuario: ForeignKey NOT NULL
+  id_especie: ForeignKey NOT NULL
+  id_raza: ForeignKey
+  id_veterinaria: ForeignKey NOT NULL
+  nombre: CharField NOT NULL
+  color: CharField
+  sexo: CharField
+  fecha_nac: DateField
+  tamano: CharField
+  peso: DecimalField
+  foto: CharField
+  alergias: TextField
+  notas_generales: TextField
+  fecha_registro: DateTimeField NOT NULL
+  estado: BooleanField NOT NULL
+}
+entity "categorias_servicio" as CategoriaServicio {
+  id_categoria: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  descripcion: TextField
+  estado: BooleanField NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "servicios" as Servicio {
+  id_servicio: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  descripcion: TextField
+  id_categoria: ForeignKey NOT NULL
+  duracion_estimada: IntegerField
+  disponible_domicilio: BooleanField NOT NULL
+  estado: BooleanField NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "precios_servicio" as PrecioServicio {
+  id_precio: AutoField <<PK>> NOT NULL
+  servicio_id: ForeignKey NOT NULL
+  variacion: CharField NOT NULL
+  modalidad: CharField
+  precio: DecimalField NOT NULL
+  descripcion: TextField
+  estado: BooleanField NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "cita" as Cita {
+  id_cita: AutoField <<PK>> NOT NULL
+  id_usuario: ForeignKey NOT NULL
+  id_mascota: ForeignKey NOT NULL
+  id_servicio: ForeignKey NOT NULL
+  id_precio_servicio: ForeignKey NOT NULL
+  fecha_generada: DateTimeField NOT NULL
+  fecha_confirmacion: DateTimeField
+  fecha_programada: DateField NOT NULL
+  hora_inicio: TimeField NOT NULL
+  hora_fin: TimeField
+  modalidad: CharField NOT NULL
+  direccion_cita: TextField
+  descripcion: TextField
+  estado: CharField NOT NULL
+  motivo_cancelacion: TextField
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "especie" as Especie {
+  id_especie: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+}
+entity "raza" as Raza {
+  id_raza: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  id_especie: ForeignKey NOT NULL
+}
+entity "unidad_movil" as UnidadMovil {
+  id_unidad: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  placa: CharField
+  descripcion: TextField
+  estado: BooleanField NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "ruta_programada" as RutaProgramada {
+  id_ruta: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  fecha: DateField NOT NULL
+  estado: CharField NOT NULL
+  id_unidad: ForeignKey NOT NULL
+  id_veterinario: ForeignKey NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "detalle_ruta" as DetalleRuta {
+  id_detalle_ruta: AutoField <<PK>> NOT NULL
+  id_ruta: ForeignKey NOT NULL
+  id_cita: ForeignKey NOT NULL
+  orden: IntegerField NOT NULL
+  hora_estimada: TimeField
+  estado: CharField NOT NULL
+}
+entity "unidad_movil_asignacion" as UnidadMovilAsignacion {
+  id_asignacion: AutoField <<PK>> NOT NULL
+  id_unidad: ForeignKey NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+  zona_nombre: CharField NOT NULL
+  zona_descripcion: TextField
+  zona_geojson: JSONField
+  fecha_inicio: DateField NOT NULL
+  fecha_fin: DateField
+  hora_inicio: TimeField
+  hora_fin: TimeField
+  estado: BooleanField NOT NULL
+  created_at: DateTimeField NOT NULL
+  updated_at: DateTimeField NOT NULL
+}
+entity "unidad_movil_asignacion_personal" as UnidadMovilAsignacionPersonal {
+  id_asignacion_personal: AutoField <<PK>> NOT NULL
+  id_asignacion: ForeignKey NOT NULL
+  id_usuario: ForeignKey NOT NULL
+  rol_operativo: CharField NOT NULL
+  es_responsable: BooleanField NOT NULL
+  estado: BooleanField NOT NULL
+  created_at: DateTimeField NOT NULL
+  updated_at: DateTimeField NOT NULL
+}
+entity "historial_clinico" as HistorialClinico {
+  id_historial_clinico: AutoField <<PK>> NOT NULL
+  id_mascota: OneToOneField NOT NULL
+  observaciones_generales: TextField
+  fecha_creacion: DateTimeField NOT NULL
+  fecha_actualizacion: DateTimeField NOT NULL
+  estado: BooleanField NOT NULL
+}
+entity "consulta_clinica" as ConsultaClinica {
+  id_consulta_clinica: AutoField <<PK>> NOT NULL
+  id_historial_clinico: ForeignKey NOT NULL
+  id_cita: ForeignKey
+  id_usuario_veterinario: ForeignKey NOT NULL
+  motivo_consulta: TextField NOT NULL
+  diagnostico: TextField
+  observaciones: TextField
+  fecha_consulta: DateTimeField NOT NULL
+  peso: DecimalField
+  temperatura: DecimalField
+  frecuencia_cardiaca: PositiveIntegerField
+  frecuencia_respiratoria: PositiveIntegerField
+  proxima_revision: DateTimeField
+  fecha_creacion: DateTimeField NOT NULL
+  fecha_actualizacion: DateTimeField NOT NULL
+  estado: BooleanField NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "tratamiento" as Tratamiento {
+  id_tratamiento: AutoField <<PK>> NOT NULL
+  id_consulta_clinica: ForeignKey NOT NULL
+  tipo: CharField NOT NULL
+  descripcion: TextField NOT NULL
+  fecha_ini: DateField NOT NULL
+  fecha_fin: DateField
+  observacion: TextField
+  estado_tratamiento: CharField NOT NULL
+  estado: BooleanField NOT NULL
+  fecha_creacion: DateTimeField NOT NULL
+  fecha_actualizacion: DateTimeField NOT NULL
+}
+entity "receta" as Receta {
+  id_receta: AutoField <<PK>> NOT NULL
+  id_consulta_clinica: OneToOneField NOT NULL
+  fecha: DateTimeField NOT NULL
+  indicaciones: TextField
+  observacion: TextField
+  estado: BooleanField NOT NULL
+  fecha_creacion: DateTimeField NOT NULL
+  fecha_actualizacion: DateTimeField NOT NULL
+}
+entity "detalle_receta" as DetalleReceta {
+  id_detalle_receta: AutoField <<PK>> NOT NULL
+  id_receta: ForeignKey NOT NULL
+  id_producto: ForeignKey
+  medicamento: CharField NOT NULL
+  dosis: CharField NOT NULL
+  frecuencia: CharField NOT NULL
+  duracion_dias: PositiveIntegerField NOT NULL
+  indicaciones_adicionales: TextField
+}
+entity "vacuna_aplicada" as VacunaAplicada {
+  id_vacuna_aplicada: AutoField <<PK>> NOT NULL
+  id_consulta_clinica: ForeignKey NOT NULL
+  nombre_vacuna: CharField NOT NULL
+  dosis: CharField
+  fecha_aplicada: DateField NOT NULL
+  fecha_proxima: DateField
+  observacion: TextField
+  lote: CharField
+  fabricante: CharField
+  estado_vacuna: CharField NOT NULL
+  estado: BooleanField NOT NULL
+  fecha_creacion: DateTimeField NOT NULL
+}
+entity "archivo_clinico" as ArchivoClinico {
+  id_archivo_clinico: AutoField <<PK>> NOT NULL
+  id_consulta_clinica: ForeignKey NOT NULL
+  nombre_archivo: CharField NOT NULL
+  archivo: FileField NOT NULL
+  tipo_archivo: CharField NOT NULL
+  extension: CharField
+  tamano_bytes: BigIntegerField
+  descripcion: TextField
+  fecha_subida: DateTimeField NOT NULL
+  estado: BooleanField NOT NULL
+}
+entity "categoria_producto" as CategoriaProducto {
+  id_categoria_producto: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  descripcion: TextField
+  estado: BooleanField NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "proveedor" as Proveedor {
+  id_proveedor: AutoField <<PK>> NOT NULL
+  nombre: CharField NOT NULL
+  contacto: CharField
+  telefono: CharField
+  ubicacion: TextField
+  estado: BooleanField NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "producto" as Producto {
+  id_producto: AutoField <<PK>> NOT NULL
+  id_categoria_producto: ForeignKey NOT NULL
+  id_proveedor: ForeignKey
+  nombre: CharField NOT NULL
+  descripcion: TextField
+  precio_compra: DecimalField
+  precio_venta: DecimalField
+  unidad_medida: CharField
+  imagen: FileField
+  visible_catalogo: BooleanField NOT NULL
+  estado: BooleanField NOT NULL
+  tipo_mascota: CharField
+  destacado: BooleanField NOT NULL
+  novedad_desde: DateField
+  novedad_hasta: DateField
+  tiene_promocion: BooleanField NOT NULL
+  tipo_descuento: CharField
+  porcentaje_descuento: DecimalField
+  monto_descuento: DecimalField
+  precio_promocional: DecimalField
+  promocion_fecha_inicio: DateField
+  promocion_fecha_fin: DateField
+  id_veterinaria: ForeignKey NOT NULL
+}
+entity "pedido" as Pedido {
+  id_pedido: BigAutoField <<PK>> NOT NULL
+  usuario_id: ForeignKey NOT NULL
+  veterinaria_id: ForeignKey NOT NULL
+  fecha_pedido: DateTimeField NOT NULL
+  direccion_entrega: TextField
+  tipo_entrega: CharField NOT NULL
+  estado_pedido: CharField NOT NULL
+  subtotal: DecimalField NOT NULL
+  costo_envio: DecimalField NOT NULL
+  total: DecimalField NOT NULL
+  observacion: TextField
+  motivo_cancelacion: TextField
+  fecha_creacion: DateTimeField NOT NULL
+  fecha_actualizacion: DateTimeField NOT NULL
+  estado: BooleanField NOT NULL
+}
+entity "detalle_pedido" as DetallePedido {
+  id_detalle_pedido: BigAutoField <<PK>> NOT NULL
+  pedido_id: ForeignKey NOT NULL
+  producto_id: ForeignKey NOT NULL
+  cantidad: PositiveIntegerField NOT NULL
+  precio_unitario: DecimalField NOT NULL
+  subtotal: DecimalField NOT NULL
+  observacion: TextField
+  estado: BooleanField NOT NULL
+}
+entity "seguimiento" as Seguimiento {
+  id_seguimiento: BigAutoField <<PK>> NOT NULL
+  veterinaria_id: ForeignKey NOT NULL
+  usuario_id: ForeignKey
+  cita_id: ForeignKey
+  pedido_id: ForeignKey
+  tipo_seguimiento: CharField NOT NULL
+  estado_anterior: CharField
+  estado_actual: CharField NOT NULL
+  descripcion: TextField
+  fecha_hora: DateTimeField NOT NULL
+  visible_cliente: BooleanField NOT NULL
+  estado: BooleanField NOT NULL
+}
+entity "configuracion_notificacion" as ConfiguracionNotificacion {
+  id_configuracion: AutoField <<PK>> NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+  tipo_notificacion: CharField NOT NULL
+  dias_anticipacion: IntegerField NOT NULL
+  canales_habilitados: JSONField NOT NULL
+  activo: BooleanField NOT NULL
+  fecha_actualizacion: DateTimeField NOT NULL
+}
+entity "dispositivo_usuario" as DispositivoUsuario {
+  id_dispositivo: AutoField <<PK>> NOT NULL
+  id_usuario: ForeignKey NOT NULL
+  id_veterinaria: ForeignKey
+  token_fcm: TextField NOT NULL
+  plataforma: CharField NOT NULL
+  activo: BooleanField NOT NULL
+  fecha_registro: DateTimeField NOT NULL
+  ultima_conexion: DateTimeField NOT NULL
+}
+entity "notificacion" as Notificacion {
+  id_notificacion: AutoField <<PK>> NOT NULL
+  id_usuario: ForeignKey NOT NULL
+  id_veterinaria: ForeignKey NOT NULL
+  titulo: CharField NOT NULL
+  mensaje: TextField NOT NULL
+  tipo: CharField NOT NULL
+  estado: CharField NOT NULL
+  id_entidad_relacionada: IntegerField
+  fecha_creacion: DateTimeField NOT NULL
+  fecha_envio: DateTimeField
+  fecha_leida: DateTimeField
+  link: CharField
+}
+OutstandingToken }o--|| User : user
+BlacklistedToken }|--|| OutstandingToken : token
+User }|--|| Rol : role
+User }o--|| Veterinaria : veterinaria
+User }--{ Group : groups (N:M)
+User }--{ Permission : user_permissions (N:M)
+Perfil }|--|| User : usuario
+Bitacora }o--|| Veterinaria : veterinaria
+Veterinaria }o--|| User : owner_user
+Suscripcion }|--|| Veterinaria : veterinaria
+Suscripcion }|--|| PlanSuscripcion : plan
+GrupoUsuario }o--|| Veterinaria : veterinaria
+UsuarioGrupo }|--|| User : usuario
+UsuarioGrupo }|--|| GrupoUsuario : grupo
+ComponenteSistema }o--|| ComponenteSistema : padre
+GrupoPermisoComponente }|--|| GrupoUsuario : grupo
+GrupoPermisoComponente }|--|| ComponenteSistema : componente
+BackupRestore }|--|| User : usuario
+BackupRestore }|--|| Veterinaria : veterinaria
+BackupConfig }|--|| Veterinaria : veterinaria
+PasswordResetToken }|--|| User : usuario
+BillingDemoEvent }|--|| PlanSuscripcion : plan
+BillingDemoEvent }o--|| Veterinaria : veterinaria
+BillingDemoEvent }o--|| User : user
+Mascota }|--|| User : usuario
+Mascota }|--|| Especie : especie
+Mascota }o--|| Raza : raza
+Mascota }|--|| Veterinaria : veterinaria
+CategoriaServicio }|--|| Veterinaria : veterinaria
+Servicio }|--|| CategoriaServicio : categoria
+Servicio }|--|| Veterinaria : veterinaria
+PrecioServicio }|--|| Servicio : servicio
+PrecioServicio }|--|| Veterinaria : veterinaria
+Cita }|--|| User : usuario
+Cita }|--|| Mascota : mascota
+Cita }|--|| Servicio : servicio
+Cita }|--|| PrecioServicio : precio_servicio
+Cita }|--|| Veterinaria : veterinaria
+Raza }|--|| Especie : especie
+UnidadMovil }|--|| Veterinaria : veterinaria
+RutaProgramada }|--|| UnidadMovil : unidad
+RutaProgramada }|--|| User : veterinario
+RutaProgramada }|--|| Veterinaria : veterinaria
+DetalleRuta }|--|| RutaProgramada : ruta
+DetalleRuta }|--|| Cita : cita
+UnidadMovilAsignacion }|--|| UnidadMovil : unidad
+UnidadMovilAsignacion }|--|| Veterinaria : veterinaria
+UnidadMovilAsignacionPersonal }|--|| UnidadMovilAsignacion : asignacion
+UnidadMovilAsignacionPersonal }|--|| User : usuario
+HistorialClinico }|--|| Mascota : mascota
+ConsultaClinica }|--|| HistorialClinico : historial_clinico
+ConsultaClinica }o--|| Cita : cita
+ConsultaClinica }|--|| User : usuario_veterinario
+ConsultaClinica }|--|| Veterinaria : veterinaria
+Tratamiento }|--|| ConsultaClinica : consulta_clinica
+Receta }|--|| ConsultaClinica : consulta_clinica
+DetalleReceta }|--|| Receta : receta
+DetalleReceta }o--|| Producto : producto
+VacunaAplicada }|--|| ConsultaClinica : consulta_clinica
+ArchivoClinico }|--|| ConsultaClinica : consulta_clinica
+CategoriaProducto }|--|| Veterinaria : veterinaria
+Proveedor }|--|| Veterinaria : veterinaria
+Producto }|--|| CategoriaProducto : categoria_producto
+Producto }o--|| Proveedor : proveedor
+Producto }|--|| Veterinaria : veterinaria
+Pedido }|--|| User : usuario
+Pedido }|--|| Veterinaria : veterinaria
+DetallePedido }|--|| Pedido : pedido
+DetallePedido }|--|| Producto : producto
+Seguimiento }|--|| Veterinaria : veterinaria
+Seguimiento }o--|| User : usuario
+Seguimiento }o--|| Cita : cita
+Seguimiento }o--|| Pedido : pedido
+ConfiguracionNotificacion }|--|| Veterinaria : veterinaria
+DispositivoUsuario }|--|| User : usuario
+DispositivoUsuario }o--|| Veterinaria : veterinaria
+Notificacion }|--|| User : usuario
+Notificacion }|--|| Veterinaria : veterinaria
+@enduml

@@ -71,6 +71,16 @@ class GrupoPermisoComponenteSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def to_internal_value(self, data):
+        mutable = data.copy()
+        # Backward compatibility with clients/tests that send "componente"
+        # as an integer id instead of "componente_id".
+        componente_raw = mutable.get("componente")
+        if "componente_id" not in mutable and componente_raw is not None:
+            if not isinstance(componente_raw, dict):
+                mutable["componente_id"] = componente_raw
+        return super().to_internal_value(mutable)
+
 
 class UsuarioGrupoSerializer(serializers.ModelSerializer):
     class Meta:

@@ -25,6 +25,9 @@ class HasComponentPermission(BasePermission):
         "SERV_PRECIOS",
         "MOVIL_MI_PERFIL",
     }
+    admin_write_fallback_components = {
+        "INV_PRODUCTOS",
+    }
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
@@ -45,6 +48,8 @@ class HasComponentPermission(BasePermission):
         tenant = getattr(request, "tenant", None)
         tenant_id = getattr(tenant, "id", None)
         if not tenant_id:
+            tenant_id = getattr(user, "veterinaria_id", None)
+        if not tenant_id:
             return False
 
         grupos_ids = list(
@@ -56,6 +61,11 @@ class HasComponentPermission(BasePermission):
             ).values_list("grupo_id", flat=True)
         )
 
+        role_name = (getattr(getattr(user, "role", None), "nombre", "") or "").upper()
+        # Fallback inmediato para ADMIN del tenant actual, incluso cuando
+        # todavía no terminó el seed de grupos/permisos base.
+        if not grupos_ids and role_name == "ADMIN" and getattr(user, "veterinaria_id", None) == tenant_id:
+            return True
         if not grupos_ids:
             return False
 
@@ -72,11 +82,25 @@ class HasComponentPermission(BasePermission):
         # Fallback seguro para CLIENT en mÃ³vil:
         # permite operar componentes cliente aun si el seed base del tenant no se ejecutÃ³.
         if not has_perm:
-            role_name = (getattr(getattr(user, "role", None), "nombre", "") or "").upper()
+            if (
+                role_name == "ADMIN"
+                and getattr(user, "veterinaria_id", None) == tenant_id
+            ):
+                return True
             if (
                 role_name == "CLIENT"
                 and component in self.client_component_fallback
                 and getattr(user, "veterinaria_id", None) == tenant_id
+            ):
+                return True
+            # Compatibilidad para componentes legacy de inventario:
+            # si un ADMIN tiene permiso de ver el componente en su tenant,
+            # se permite escritura para no bloquear flujos existentes.
+            if (
+                role_name == "ADMIN"
+                and component in self.admin_write_fallback_components
+                and getattr(user, "veterinaria_id", None) == tenant_id
+                and perms.filter(puede_ver=True).exists()
             ):
                 return True
 

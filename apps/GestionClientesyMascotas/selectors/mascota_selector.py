@@ -12,7 +12,9 @@ class MascotaSelector:
         Si el usuario es un cliente, solo retorna sus mascotas.
         Si es Super Admin, retorna todas las mascotas.
         """
-        if user and getattr(user, "is_superuser", False):
+        # Si hay tenant resuelto en el request, siempre scopear por tenant.
+        # Solo usar vista global cuando no exista tenant explícito.
+        if user and getattr(user, "is_superuser", False) and not veterinaria_id:
             queryset = Mascota.objects.all().select_related(
                 "usuario", "especie", "raza"
             )
@@ -28,7 +30,7 @@ class MascotaSelector:
 
     @staticmethod
     def get_mascota_detail(pk, veterinaria_id, user=None):
-        if user and getattr(user, "is_superuser", False):
+        if user and getattr(user, "is_superuser", False) and not veterinaria_id:
             queryset = Mascota.objects.filter(pk=pk)
         else:
             queryset = Mascota.objects.filter(pk=pk, veterinaria_id=veterinaria_id)

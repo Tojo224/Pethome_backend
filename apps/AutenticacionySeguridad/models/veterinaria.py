@@ -13,6 +13,14 @@ class Veterinaria(models.Model):
     estado = models.BooleanField(default=True)
     permite_auto_registro_clientes = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    owner_user = models.ForeignKey(
+        "AutenticacionySeguridad.User",
+        db_column="owner_user_id",
+        on_delete=models.SET_NULL,
+        related_name="veterinarias_propietarias",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         db_table = "veterinaria"
