@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-from apps.AutenticacionySeguridad.models import Veterinaria
 from apps.GestionInventarioProveedores.models.proveedor import Proveedor
 
 
@@ -23,7 +22,6 @@ class EstadoField(serializers.Field):
 
 
 class ProveedorSerializer(serializers.ModelSerializer):
-    veterinaria = serializers.PrimaryKeyRelatedField(queryset=Veterinaria.objects.all(), required=False)
     id_veterinaria = serializers.IntegerField(source="veterinaria_id", read_only=True)
     estado = EstadoField()
 
@@ -36,10 +34,10 @@ class ProveedorSerializer(serializers.ModelSerializer):
             "telefono",
             "ubicacion",
             "estado",
-            "veterinaria",
             "id_veterinaria",
         ]
         read_only_fields = ["id_proveedor", "id_veterinaria"]
+        validators = []
 
     def validate_nombre(self, value):
         nombre = (value or "").strip()

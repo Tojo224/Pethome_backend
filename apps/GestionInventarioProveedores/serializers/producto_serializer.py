@@ -33,11 +33,7 @@ class ProductoSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    id_veterinaria = serializers.PrimaryKeyRelatedField(
-        source="veterinaria",
-        queryset=Veterinaria.objects.all(),
-        required=False,
-    )
+    id_veterinaria = serializers.IntegerField(source="veterinaria_id", read_only=True)
     estado = EstadoField()
     categoria_nombre = serializers.CharField(
         source="categoria_producto.nombre",
@@ -79,6 +75,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             "id_veterinaria",
         ]
         read_only_fields = ["id_producto"]
+        validators = []
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -87,6 +84,13 @@ class ProductoSerializer(serializers.ModelSerializer):
         categoria = attrs.get("categoria_producto") or getattr(instance, "categoria_producto", None)
         nombre = (attrs.get("nombre") or getattr(instance, "nombre", "") or "").strip()
         veterinaria = attrs.get("veterinaria") or getattr(instance, "veterinaria", None)
+        if veterinaria is None:
+            request = self.context.get("request")
+            if request is not None:
+                tenant = getattr(request, "tenant", None)
+                tenant_id = getattr(tenant, "id", None) or getattr(request.user, "veterinaria_id", None)
+                if tenant_id:
+                    veterinaria = Veterinaria.objects.filter(pk=tenant_id).first()
 
         precio_compra = attrs.get("precio_compra")
         if precio_compra is None and instance is not None:
