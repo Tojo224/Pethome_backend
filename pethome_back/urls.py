@@ -23,6 +23,7 @@ urlpatterns = [
     path("api/gestion/clinica/", include("apps.GestionarClinicaVeterinaria.urls")),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("api/gestion/inventario/", include("apps.GestionInventarioProveedores.urls")),
+    path("api/gestion/ventas-pagos/", include("apps.GestiondeVentasyPagos.urls")),
     path("api/gestion/notificaciones/", include("apps.NotificacionesySeguimiento.urls")),
 ]
 
