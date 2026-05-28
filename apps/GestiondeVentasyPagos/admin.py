@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from apps.GestiondeVentasyPagos.models import DetalleVenta, Venta
+from apps.GestiondeVentasyPagos.models import (
+    CarritoTemporal,
+    DetalleCarritoTemporal,
+    DetalleVenta,
+    Venta,
+)
 
 
 @admin.register(Venta)
@@ -13,4 +18,25 @@ class VentaAdmin(admin.ModelAdmin):
 @admin.register(DetalleVenta)
 class DetalleVentaAdmin(admin.ModelAdmin):
     list_display = ("id_detalle_venta", "venta", "tipo_item", "cantidad", "precio_unitario", "subtotal")
+    list_filter = ("tipo_item", "estado")
+
+
+@admin.register(CarritoTemporal)
+class CarritoTemporalAdmin(admin.ModelAdmin):
+    list_display = ("id_carrito", "veterinaria", "cliente", "estado_carrito", "total_estimado", "fecha_actualizacion")
+    list_filter = ("estado_carrito", "estado", "veterinaria")
+    search_fields = ("id_carrito", "cliente__correo")
+
+
+@admin.register(DetalleCarritoTemporal)
+class DetalleCarritoTemporalAdmin(admin.ModelAdmin):
+    list_display = (
+        "id_detalle_carrito",
+        "carrito",
+        "tipo_item",
+        "cantidad",
+        "precio_unitario_estimado",
+        "subtotal_estimado",
+        "estado",
+    )
     list_filter = ("tipo_item", "estado")
