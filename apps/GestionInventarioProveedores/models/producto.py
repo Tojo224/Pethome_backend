@@ -103,6 +103,16 @@ class Producto(models.Model):
     promocion_fecha_inicio = models.DateField(blank=True, null=True)
     promocion_fecha_fin = models.DateField(blank=True, null=True)
 
+    # Control de vencimiento
+    requiere_control_vencimiento = models.BooleanField(
+        default=False,
+        help_text="Indica si el producto requiere control de fecha de vencimiento"
+    )
+    dias_alerta_vencimiento = models.IntegerField(
+        default=30,
+        help_text="Días de anticipación para alertar sobre vencimiento próximo"
+    )
+
     veterinaria = models.ForeignKey(
         "AutenticacionySeguridad.Veterinaria",
         db_column="id_veterinaria",

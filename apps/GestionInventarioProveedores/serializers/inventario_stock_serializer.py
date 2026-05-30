@@ -30,6 +30,8 @@ class StockPuntoSerializer(serializers.ModelSerializer):
             "categoria_producto",
             "cantidad",
             "cantidad_minima",
+            "numero_lote",
+            "fecha_vencimiento_lote",
             "estado_stock",
             "fecha_actualizacion",
         ]

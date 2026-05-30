@@ -86,6 +86,8 @@ class InventarioMovimientoViewSet(TenantViewMixin, viewsets.ViewSet):
             producto=data["producto"],
             tipo=data["tipo"],
             cantidad=data["cantidad"],
+            numero_lote=data.get("numero_lote"),
+            fecha_vencimiento_lote=data.get("fecha_vencimiento_lote"),
             punto_origen=punto_origen,
             punto_destino=punto_destino,
             motivo=data.get("motivo"),

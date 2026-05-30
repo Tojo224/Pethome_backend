@@ -25,11 +25,39 @@ class MovimientoInventarioCreateSerializer(serializers.Serializer):
         allow_null=True,
     )
     motivo = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    numero_lote = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=100)
+    fecha_vencimiento_lote = serializers.DateField(required=False, allow_null=True)
 
     def validate_cantidad(self, value: Decimal):
         if value <= 0:
             raise serializers.ValidationError("La cantidad debe ser mayor a cero.")
         return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        tipo = attrs.get("tipo")
+        producto = attrs.get("producto")
+        numero_lote = attrs.get("numero_lote")
+        fecha_vencimiento_lote = attrs.get("fecha_vencimiento_lote")
+
+        if numero_lote:
+            attrs["numero_lote"] = numero_lote.strip() or None
+
+        if (
+            tipo in {MovimientoInventario.TipoMovimiento.ENTRADA, MovimientoInventario.TipoMovimiento.REPOSICION}
+            and producto is not None
+            and getattr(producto, "requiere_control_vencimiento", False)
+        ):
+            if not attrs.get("numero_lote"):
+                raise serializers.ValidationError(
+                    {"numero_lote": "Este producto requiere número de lote para entradas/reposición."}
+                )
+            if not fecha_vencimiento_lote:
+                raise serializers.ValidationError(
+                    {"fecha_vencimiento_lote": "Este producto requiere fecha de vencimiento de lote."}
+                )
+
+        return attrs
 
 
 class MovimientoInventarioSerializer(serializers.ModelSerializer):
@@ -50,6 +78,8 @@ class MovimientoInventarioSerializer(serializers.ModelSerializer):
             "id_producto",
             "producto_nombre",
             "cantidad",
+            "numero_lote",
+            "fecha_vencimiento_lote",
             "cantidad_anterior",
             "cantidad_posterior",
             "id_usuario",
