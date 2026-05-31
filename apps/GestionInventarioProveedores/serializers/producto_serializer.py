@@ -57,6 +57,8 @@ class ProductoSerializer(serializers.ModelSerializer):
             "imagen",
             "visible_catalogo",
             "estado",
+            "requiere_control_vencimiento",
+            "dias_alerta_vencimiento",
             "tipo_mascota",
             "destacado",
             "novedad_desde",
@@ -79,6 +81,18 @@ class ProductoSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        requiere_control_vencimiento = attrs.get(
+            "requiere_control_vencimiento",
+            getattr(getattr(self, "instance", None), "requiere_control_vencimiento", False),
+        )
+        dias_alerta_vencimiento = attrs.get(
+            "dias_alerta_vencimiento",
+            getattr(getattr(self, "instance", None), "dias_alerta_vencimiento", 30),
+        )
+        if requiere_control_vencimiento and (dias_alerta_vencimiento is None or dias_alerta_vencimiento < 1):
+            raise serializers.ValidationError(
+                {"dias_alerta_vencimiento": "Debe ser mayor o igual a 1 cuando el control de vencimiento estÃ¡ activo."}
+            )
 
         instance = getattr(self, "instance", None)
         categoria = attrs.get("categoria_producto") or getattr(instance, "categoria_producto", None)

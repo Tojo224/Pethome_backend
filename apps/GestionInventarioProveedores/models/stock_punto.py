@@ -1,4 +1,6 @@
 from django.db import models
+from django.utils import timezone
+from datetime import timedelta
 
 
 class StockPunto(models.Model):
@@ -23,6 +25,8 @@ class StockPunto(models.Model):
     )
     cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     cantidad_minima = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    numero_lote = models.CharField(max_length=100, blank=True, null=True)
+    fecha_vencimiento_lote = models.DateField(blank=True, null=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -31,8 +35,8 @@ class StockPunto(models.Model):
         verbose_name_plural = "Stocks por punto"
         constraints = [
             models.UniqueConstraint(
-                fields=["punto_inventario", "producto"],
-                name="uq_stock_punto_producto",
+                fields=["punto_inventario", "producto", "numero_lote"],
+                name="uq_stock_punto_producto_lote",
             ),
             models.CheckConstraint(
                 check=models.Q(cantidad__gte=0),
@@ -49,3 +53,32 @@ class StockPunto(models.Model):
 
     def __str__(self):
         return f"{self.producto_id} @ {self.punto_inventario_id}: {self.cantidad}"
+
+    def es_stock_bajo(self):
+        """Verifica si el stock esta por debajo del minimo"""
+        return self.cantidad <= self.cantidad_minima
+
+    def es_stock_agotado(self):
+        """Verifica si el stock esta agotado (cantidad = 0)"""
+        return self.cantidad == 0
+
+    def esta_vencido(self):
+        """Verifica si el lote esta vencido"""
+        if not self.fecha_vencimiento_lote:
+            return False
+        return self.fecha_vencimiento_lote <= timezone.now().date()
+
+    def proximo_a_vencer(self, dias=None):
+        """Verifica si el lote esta proximo a vencer"""
+        if not self.fecha_vencimiento_lote:
+            return False
+
+        dias_alerta = dias
+        if dias_alerta is None:
+            dias_alerta = getattr(self.producto, "dias_alerta_vencimiento", None) or 30
+
+        fecha_alerta = timezone.now().date() + timedelta(days=dias_alerta)
+        return (
+            self.fecha_vencimiento_lote <= fecha_alerta
+            and self.fecha_vencimiento_lote > timezone.now().date()
+        )

@@ -10,6 +10,7 @@ from apps.GestionInventarioProveedores.views.unidad_medida_view import UnidadMed
 from apps.GestionInventarioProveedores.views.inventario_movimiento_view import InventarioMovimientoViewSet
 from apps.GestionInventarioProveedores.views.inventario_stock_view import InventarioStockViewSet
 from apps.GestionInventarioProveedores.views.punto_inventario_view import PuntoInventarioViewSet
+from apps.GestionInventarioProveedores.views.alertas_inventario_view import AlertasInventarioViewSet
 
 producto_list = ProductoViewSet.as_view({
     "get": "list",
@@ -109,4 +110,13 @@ urlpatterns = [
     path("stock/alertas/", stock_alertas, name="inventario-stock-alertas"),
     path("stock/productos/<int:pk>/disponibilidad/", stock_disponibilidad, name="inventario-stock-disponibilidad"),
     path("puntos-inventario/", punto_inventario_list, name="inventario-puntos-list"),
+    
+    # Rutas de alertas de inventario
+    path("alertas/stocks-bajos/", AlertasInventarioViewSet.as_view({"get": "stocks_bajos"}), name="alertas-stocks-bajos"),
+    path("alertas/stocks-agotados/", AlertasInventarioViewSet.as_view({"get": "stocks_agotados"}), name="alertas-stocks-agotados"),
+    path("alertas/lotes-vencidos/", AlertasInventarioViewSet.as_view({"get": "lotes_vencidos"}), name="alertas-lotes-vencidos"),
+    path("alertas/lotes-proximo-vencer/", AlertasInventarioViewSet.as_view({"get": "lotes_proximo_vencer"}), name="alertas-lotes-proximo-vencer"),
+    path("alertas/resumen/", AlertasInventarioViewSet.as_view({"get": "resumen_alertas"}), name="alertas-resumen"),
+    path("alertas/productos-para-reposicion/", AlertasInventarioViewSet.as_view({"get": "productos_para_reposicion"}), name="alertas-productos-reposicion"),
+    path("alertas/validar-disponibilidad/", AlertasInventarioViewSet.as_view({"get": "validar_disponibilidad"}), name="alertas-validar-disponibilidad"),
 ]

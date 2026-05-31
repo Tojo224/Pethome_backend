@@ -31,6 +31,8 @@ class InventoryMovementService:
         producto,
         tipo: str,
         cantidad: Decimal,
+        numero_lote: str | None = None,
+        fecha_vencimiento_lote=None,
         punto_origen: PuntoInventario | None = None,
         punto_destino: PuntoInventario | None = None,
         motivo: str | None = None,
@@ -48,6 +50,8 @@ class InventoryMovementService:
                 producto=producto,
                 tipo=tipo,
                 cantidad=cantidad,
+                numero_lote=numero_lote,
+                fecha_vencimiento_lote=fecha_vencimiento_lote,
                 punto_origen=punto_origen,
                 motivo=motivo,
             )
@@ -59,6 +63,8 @@ class InventoryMovementService:
                 producto=producto,
                 tipo=tipo,
                 cantidad=cantidad,
+                numero_lote=numero_lote,
+                fecha_vencimiento_lote=fecha_vencimiento_lote,
                 punto_destino=punto_destino,
                 motivo=motivo,
             )
@@ -69,6 +75,8 @@ class InventoryMovementService:
                 usuario=usuario,
                 producto=producto,
                 cantidad=cantidad,
+                numero_lote=numero_lote,
+                fecha_vencimiento_lote=fecha_vencimiento_lote,
                 punto_origen=punto_origen,
                 punto_destino=punto_destino,
                 motivo=motivo,
@@ -80,6 +88,8 @@ class InventoryMovementService:
                 usuario=usuario,
                 producto=producto,
                 cantidad=cantidad,
+                numero_lote=numero_lote,
+                fecha_vencimiento_lote=fecha_vencimiento_lote,
                 punto_origen=punto_origen,
                 punto_destino=punto_destino,
                 motivo=motivo,
@@ -92,6 +102,8 @@ class InventoryMovementService:
                 usuario=usuario,
                 producto=producto,
                 cantidad=cantidad,
+                numero_lote=numero_lote,
+                fecha_vencimiento_lote=fecha_vencimiento_lote,
                 punto_origen=punto_origen,
                 punto_destino=punto_destino,
                 motivo=motivo,
@@ -120,18 +132,52 @@ class InventoryMovementService:
                 raise ValidationError({"detail": "Origen y destino no pueden ser iguales."})
 
     @classmethod
-    def _get_stock_locked(cls, *, veterinaria_id, producto, punto):
-        stock, _ = StockPunto.objects.select_for_update().get_or_create(
+    def _get_stock_locked(cls, *, veterinaria_id, producto, punto, numero_lote=None, fecha_vencimiento_lote=None):
+        lote = (numero_lote or "").strip() or None
+        stock_qs = StockPunto.objects.select_for_update().filter(
             veterinaria_id=veterinaria_id,
             producto=producto,
             punto_inventario=punto,
-            defaults={"cantidad": 0, "cantidad_minima": 0},
         )
+
+        stock = stock_qs.filter(numero_lote=lote).first() if lote else stock_qs.filter(numero_lote__isnull=True).first()
+
+        if stock is None:
+            stock = StockPunto.objects.create(
+                veterinaria_id=veterinaria_id,
+                producto=producto,
+                punto_inventario=punto,
+                cantidad=0,
+                cantidad_minima=0,
+                numero_lote=lote,
+                fecha_vencimiento_lote=fecha_vencimiento_lote,
+            )
+        elif fecha_vencimiento_lote and stock.fecha_vencimiento_lote != fecha_vencimiento_lote:
+            stock.fecha_vencimiento_lote = fecha_vencimiento_lote
+            stock.save(update_fields=["fecha_vencimiento_lote", "fecha_actualizacion"])
         return stock
 
     @classmethod
-    def _apply_decrement(cls, *, veterinaria_id, usuario, producto, tipo, cantidad, punto_origen, motivo):
-        stock = cls._get_stock_locked(veterinaria_id=veterinaria_id, producto=producto, punto=punto_origen)
+    def _apply_decrement(
+        cls,
+        *,
+        veterinaria_id,
+        usuario,
+        producto,
+        tipo,
+        cantidad,
+        numero_lote,
+        fecha_vencimiento_lote,
+        punto_origen,
+        motivo,
+    ):
+        stock = cls._get_stock_locked(
+            veterinaria_id=veterinaria_id,
+            producto=producto,
+            punto=punto_origen,
+            numero_lote=numero_lote,
+            fecha_vencimiento_lote=fecha_vencimiento_lote,
+        )
         if stock.cantidad < cantidad:
             raise ValidationError({"detail": "Stock insuficiente para realizar el movimiento."})
         anterior = stock.cantidad
@@ -144,14 +190,34 @@ class InventoryMovementService:
             punto_origen=punto_origen,
             tipo=tipo,
             cantidad=cantidad,
+            numero_lote=stock.numero_lote,
+            fecha_vencimiento_lote=stock.fecha_vencimiento_lote,
             cantidad_anterior=anterior,
             cantidad_posterior=stock.cantidad,
             motivo=motivo,
         )
 
     @classmethod
-    def _apply_increment(cls, *, veterinaria_id, usuario, producto, tipo, cantidad, punto_destino, motivo):
-        stock = cls._get_stock_locked(veterinaria_id=veterinaria_id, producto=producto, punto=punto_destino)
+    def _apply_increment(
+        cls,
+        *,
+        veterinaria_id,
+        usuario,
+        producto,
+        tipo,
+        cantidad,
+        numero_lote,
+        fecha_vencimiento_lote,
+        punto_destino,
+        motivo,
+    ):
+        stock = cls._get_stock_locked(
+            veterinaria_id=veterinaria_id,
+            producto=producto,
+            punto=punto_destino,
+            numero_lote=numero_lote,
+            fecha_vencimiento_lote=fecha_vencimiento_lote,
+        )
         anterior = stock.cantidad
         stock.cantidad = anterior + cantidad
         stock.save(update_fields=["cantidad", "fecha_actualizacion"])
@@ -162,6 +228,8 @@ class InventoryMovementService:
             punto_destino=punto_destino,
             tipo=tipo,
             cantidad=cantidad,
+            numero_lote=stock.numero_lote,
+            fecha_vencimiento_lote=stock.fecha_vencimiento_lote,
             cantidad_anterior=anterior,
             cantidad_posterior=stock.cantidad,
             motivo=motivo,
@@ -175,15 +243,29 @@ class InventoryMovementService:
         usuario,
         producto,
         cantidad,
+        numero_lote,
+        fecha_vencimiento_lote,
         punto_origen,
         punto_destino,
         motivo,
         movimiento_tipo=MovimientoInventario.TipoMovimiento.TRANSFERENCIA,
     ):
-        stock_origen = cls._get_stock_locked(veterinaria_id=veterinaria_id, producto=producto, punto=punto_origen)
+        stock_origen = cls._get_stock_locked(
+            veterinaria_id=veterinaria_id,
+            producto=producto,
+            punto=punto_origen,
+            numero_lote=numero_lote,
+            fecha_vencimiento_lote=fecha_vencimiento_lote,
+        )
         if stock_origen.cantidad < cantidad:
             raise ValidationError({"detail": "Stock insuficiente para realizar el movimiento."})
-        stock_destino = cls._get_stock_locked(veterinaria_id=veterinaria_id, producto=producto, punto=punto_destino)
+        stock_destino = cls._get_stock_locked(
+            veterinaria_id=veterinaria_id,
+            producto=producto,
+            punto=punto_destino,
+            numero_lote=stock_origen.numero_lote,
+            fecha_vencimiento_lote=stock_origen.fecha_vencimiento_lote,
+        )
 
         anterior_origen = stock_origen.cantidad
         stock_origen.cantidad = anterior_origen - cantidad
@@ -201,6 +283,8 @@ class InventoryMovementService:
             punto_destino=punto_destino,
             tipo=movimiento_tipo,
             cantidad=cantidad,
+            numero_lote=stock_origen.numero_lote,
+            fecha_vencimiento_lote=stock_origen.fecha_vencimiento_lote,
             cantidad_anterior=anterior_origen,
             cantidad_posterior=stock_origen.cantidad,
             motivo=motivo,
@@ -214,6 +298,8 @@ class InventoryMovementService:
         usuario,
         producto,
         cantidad,
+        numero_lote,
+        fecha_vencimiento_lote,
         punto_origen,
         punto_destino,
         motivo,
@@ -221,7 +307,13 @@ class InventoryMovementService:
         punto = punto_destino or punto_origen
         if not punto:
             raise ValidationError({"detail": "El ajuste requiere al menos un punto de inventario."})
-        stock = cls._get_stock_locked(veterinaria_id=veterinaria_id, producto=producto, punto=punto)
+        stock = cls._get_stock_locked(
+            veterinaria_id=veterinaria_id,
+            producto=producto,
+            punto=punto,
+            numero_lote=numero_lote,
+            fecha_vencimiento_lote=fecha_vencimiento_lote,
+        )
         anterior = stock.cantidad
         posterior = anterior + cantidad
         if posterior < 0:
@@ -236,6 +328,8 @@ class InventoryMovementService:
             punto_destino=punto_destino,
             tipo=MovimientoInventario.TipoMovimiento.AJUSTE,
             cantidad=cantidad,
+            numero_lote=stock.numero_lote,
+            fecha_vencimiento_lote=stock.fecha_vencimiento_lote,
             cantidad_anterior=anterior,
             cantidad_posterior=posterior,
             motivo=motivo,

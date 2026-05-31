@@ -49,6 +49,8 @@ class MovimientoInventario(models.Model):
     )
     tipo = models.CharField(max_length=20, choices=TipoMovimiento.choices)
     cantidad = models.DecimalField(max_digits=12, decimal_places=2)
+    numero_lote = models.CharField(max_length=100, blank=True, null=True)
+    fecha_vencimiento_lote = models.DateField(blank=True, null=True)
     cantidad_anterior = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     cantidad_posterior = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     motivo = models.TextField(blank=True, null=True)
