@@ -25,6 +25,7 @@ urlpatterns = [
     path("api/gestion/inventario/", include("apps.GestionInventarioProveedores.urls")),
     path("api/gestion/ventas-pagos/", include("apps.GestiondeVentasyPagos.urls")),
     path("api/gestion/notificaciones/", include("apps.NotificacionesySeguimiento.urls")),
+    path("api/reportes/", include("apps.reportes.urls")),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
