@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <style>
+      .bg { fill: #f7f8fc; }
+      .card { fill: #ffffff; stroke: #d9ddea; stroke-width: 1; }
+      .title { font: 700 28px 'Segoe UI', Arial, sans-serif; fill: #1b1f2a; }
+      .h2 { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #2a2f3d; }
+      .txt { font: 500 14px 'Segoe UI', Arial, sans-serif; fill: #4a5164; }
+      .muted { font: 500 13px 'Segoe UI', Arial, sans-serif; fill: #7c8499; }
+      .chip { font: 700 12px 'Segoe UI', Arial, sans-serif; fill: #2a2f3d; }
+      .ok { fill: #ddf6e8; stroke: #87d7a8; }
+      .low { fill: #fff2cc; stroke: #f0c36d; }
+      .out { fill: #ffd9d9; stroke: #ec8f8f; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1440" height="900"/>
+
+  <text class="title" x="48" y="56">CU-23 · Control de inventario general y por unidad móvil</text>
+
+  <rect class="card" x="40" y="84" width="1360" height="86" rx="14"/>
+  <text class="h2" x="64" y="118">Filtros</text>
+  <rect class="card" x="64" y="130" width="310" height="30" rx="8"/>
+  <text class="muted" x="76" y="150">Buscar producto...</text>
+  <rect class="card" x="388" y="130" width="220" height="30" rx="8"/>
+  <text class="muted" x="400" y="150">Categoría</text>
+  <rect class="card" x="622" y="130" width="230" height="30" rx="8"/>
+  <text class="muted" x="634" y="150">Punto inventario</text>
+  <rect class="card" x="866" y="130" width="210" height="30" rx="8"/>
+  <text class="muted" x="878" y="150">Estado alerta</text>
+  <rect x="1092" y="130" width="132" height="30" rx="8" fill="#5b6cff"/>
+  <text class="chip" x="1130" y="150" fill="#fff">Filtrar</text>
+
+  <rect class="card" x="40" y="186" width="1360" height="54" rx="14"/>
+  <rect x="64" y="201" width="170" height="28" rx="14" fill="#5b6cff"/>
+  <text class="chip" x="111" y="219" fill="#fff">Stock general</text>
+  <rect class="card" x="246" y="201" width="200" height="28" rx="14"/>
+  <text class="chip" x="286" y="219">Unidades móviles</text>
+  <rect class="card" x="458" y="201" width="122" height="28" rx="14"/>
+  <text class="chip" x="493" y="219">Alertas</text>
+
+  <rect class="card" x="40" y="254" width="940" height="486" rx="14"/>
+  <text class="h2" x="64" y="286">Tabla de stock</text>
+  <text class="muted" x="64" y="312">Producto</text>
+  <text class="muted" x="330" y="312">Categoría</text>
+  <text class="muted" x="530" y="312">Punto</text>
+  <text class="muted" x="740" y="312">Cantidad</text>
+  <text class="muted" x="830" y="312">Mínimo</text>
+  <text class="muted" x="900" y="312">Estado</text>
+  <line x1="60" y1="322" x2="950" y2="322" stroke="#e6e9f2"/>
+
+  <text class="txt" x="64" y="352">Arena sanitaria premium 4.5Kg</text>
+  <text class="txt" x="330" y="352">Higiene</text>
+  <text class="txt" x="530" y="352">ALMACEN_GENERAL</text>
+  <text class="txt" x="740" y="352">25.00</text>
+  <text class="txt" x="830" y="352">5.00</text>
+  <rect class="ok" x="898" y="334" width="78" height="24" rx="12"/>
+  <text class="chip" x="912" y="350">DISP.</text>
+
+  <text class="txt" x="64" y="392">Antipulgas Spot-On</text>
+  <text class="txt" x="330" y="392">Farmacia</text>
+  <text class="txt" x="530" y="392">UNIDAD_MOVIL #2</text>
+  <text class="txt" x="740" y="392">3.00</text>
+  <text class="txt" x="830" y="392">5.00</text>
+  <rect class="low" x="898" y="374" width="78" height="24" rx="12"/>
+  <text class="chip" x="910" y="390">BAJO</text>
+
+  <text class="txt" x="64" y="432">Vacuna antirrábica</text>
+  <text class="txt" x="330" y="432">Vacunas</text>
+  <text class="txt" x="530" y="432">UNIDAD_MOVIL #1</text>
+  <text class="txt" x="740" y="432">0.00</text>
+  <text class="txt" x="830" y="432">4.00</text>
+  <rect class="out" x="898" y="414" width="78" height="24" rx="12"/>
+  <text class="chip" x="914" y="430">AGOT.</text>
+
+  <rect class="card" x="996" y="254" width="404" height="240" rx="14"/>
+  <text class="h2" x="1020" y="286">Disponibilidad por producto</text>
+  <rect class="card" x="1020" y="304" width="356" height="34" rx="8"/>
+  <text class="muted" x="1032" y="326">Selecciona producto...</text>
+  <text class="txt" x="1020" y="370">Stock total: 28.00</text>
+  <text class="txt" x="1020" y="400">Stock general: 25.00</text>
+  <text class="txt" x="1020" y="430">Stock móvil: 3.00</text>
+
+  <rect class="card" x="996" y="510" width="404" height="230" rx="14"/>
+  <text class="h2" x="1020" y="542">Resumen alertas</text>
+  <text class="txt" x="1020" y="575">Productos agotados: 2</text>
+  <text class="txt" x="1020" y="605">Stock bajo: 6</text>
+  <text class="txt" x="1020" y="635">Disponibles: 34</text>
+</svg>
