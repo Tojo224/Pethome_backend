@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "apps.GestionInventarioProveedores",
     "apps.GestiondeVentasyPagos",
     "apps.NotificacionesySeguimiento",
+    "apps.reportes",
 ]
 
 MIDDLEWARE = [
