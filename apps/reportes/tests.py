@@ -12,12 +12,19 @@ class ReportesTests(TestCase):
         Rol = apps.get_model("AutenticacionySeguridad", "Rol")
         User = apps.get_model("AutenticacionySeguridad", "User")
         Veterinaria = apps.get_model("AutenticacionySeguridad", "Veterinaria")
+        CategoriaServicio = apps.get_model("GestionServiciosyReserva", "CategoriaServicio")
+        Especie = apps.get_model("GestionServiciosyReserva", "Especie")
 
         cls.rol_super, _ = Rol.objects.get_or_create(nombre=Rol.RolName.SUPERADMIN)
         cls.rol_admin, _ = Rol.objects.get_or_create(nombre=Rol.RolName.ADMIN)
         cls.rol_vet, _ = Rol.objects.get_or_create(nombre=Rol.RolName.VETERINARIAN)
 
         cls.vet = Veterinaria.objects.create(nombre="Vet Test", slug="vet-test")
+        cls.categoria = CategoriaServicio.objects.create(
+            nombre="Categoria Test",
+            veterinaria=cls.vet,
+        )
+        cls.especie = Especie.objects.create(nombre="Canino")
 
         cls.superuser = User.objects.create_user(correo="super@test.com", password="pass", role=cls.rol_super)
         cls.admin = User.objects.create_user(correo="admin@test.com", password="pass", role=cls.rol_admin, veterinaria=cls.vet)
@@ -28,9 +35,14 @@ class ReportesTests(TestCase):
         PrecioServicio = apps.get_model("GestionServiciosyReserva", "PrecioServicio")
         Mascota = apps.get_model("GestionClientesyMascotas", "Mascota")
 
-        cls.servicio = Servicio.objects.create(nombre="Corte", categoria_id=1, veterinaria=cls.vet)
+        cls.servicio = Servicio.objects.create(nombre="Corte", categoria=cls.categoria, veterinaria=cls.vet)
         cls.precio = PrecioServicio.objects.create(servicio=cls.servicio, precio=100, veterinaria=cls.vet)
-        cls.mascota = Mascota.objects.create(usuario=cls.superuser, especie_id=1, nombre="Doggo", veterinaria=cls.vet)
+        cls.mascota = Mascota.objects.create(
+            usuario=cls.superuser,
+            especie=cls.especie,
+            nombre="Doggo",
+            veterinaria=cls.vet,
+        )
 
         # create a cita
         Cita = apps.get_model("GestionServiciosyReserva", "Cita")
@@ -109,6 +121,7 @@ class ReportesTests(TestCase):
     def test_export_rejects_error_reports(self):
         from apps.reportes.models import ReporteGenerado
 
+        self.client.force_authenticate(self.admin)
         reporte = ReporteGenerado.objects.create(
             usuario=self.admin,
             veterinaria=self.vet,
@@ -202,18 +215,18 @@ class ReportesTests(TestCase):
         self.assertIn("results", r.data)
         self.assertEqual(len(r.data["results"]), 5)
 
-def test_dynamic_generation_with_related_dimension_avoids_annotation_conflict(self):
-    url = reverse("reportes-dinamicos-generar")
-    self.client.force_authenticate(self.admin)
+    def test_dynamic_generation_with_related_dimension_avoids_annotation_conflict(self):
+        url = reverse("reportes-dinamicos-generar")
+        self.client.force_authenticate(self.admin)
 
-    payload = {
-        "entidad": "clientes",
-        "metricas": ["cantidad", "activos"],
-        "dimensiones": ["veterinaria"],
-        "filtros": {},
-        "formato": "pdf",
-    }
+        payload = {
+            "entidad": "clientes",
+            "metricas": ["cantidad", "activos"],
+            "dimensiones": ["veterinaria"],
+            "filtros": {},
+            "formato": "pdf",
+        }
 
-    r = self.client.post(url, payload, format="json")
-    self.assertEqual(r.status_code, 201)
-    self.assertTrue(r.data["datos"])
+        r = self.client.post(url, payload, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.assertTrue(r.data["datos"])

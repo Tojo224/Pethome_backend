@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('AutenticacionySeguridad', '0025_alter_backupconfig_dias_retención_and_more'),
+        ('AutenticacionySeguridad', '0024_billingdemoevent_stripe_fields_and_statuses'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -42,3 +42,4 @@ class Migration(migrations.Migration):
             },
         ),
     ]
+
