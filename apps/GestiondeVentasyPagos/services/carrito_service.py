@@ -151,7 +151,11 @@ class CarritoService:
             raise ValidationError({"producto": "El producto seleccionado no tiene un precio de venta válido."})
 
         stock_disponible = (
-            StockPunto.objects.filter(veterinaria_id=tenant_id, producto_id=producto.id_producto)
+            StockPunto.objects.filter(
+                veterinaria_id=tenant_id,
+                producto_id=producto.id_producto,
+                numero_lote__isnull=True,
+            )
             .aggregate(total=Coalesce(Sum("cantidad"), Decimal("0"), output_field=DecimalField(max_digits=12, decimal_places=2)))
             .get("total")
             or Decimal("0")

@@ -115,6 +115,7 @@ class StripePaymentsWebhookView(APIView):
         event_dict = json.loads(payload.decode("utf-8"))
         event_type = event_dict.get("type")
         event_id = event_dict.get("id")
+        logger.info("[Stripe Webhook] Evento recibido: %s", event_type)
         obj = event_dict.get("data", {}).get("object", {}) or {}
 
         obj_type = obj.get("object")
@@ -144,6 +145,8 @@ class StripePaymentsWebhookView(APIView):
             logger.warning("Webhook Stripe recibido pero no se encontró un pago coincidente en base de datos. type=%s event_id=%s", event_type, event_id)
             return Response({"detail": "Webhook recibido sin pago asociado."}, status=status.HTTP_200_OK)
 
+        logger.info("[Stripe Webhook] Pago encontrado id_pago=%d", pago.id_pago)
+
         # Idempotencia: si ya fue procesado como PAGADO
         if pago.estado_pago == Pago.EstadoPago.PAGADO:
             logger.info("Webhook recibido para Pago #%d que ya fue procesado como PAGADO.", pago.id_pago)
@@ -169,6 +172,7 @@ class StripePaymentsWebhookView(APIView):
             pago.fecha_confirmacion = timezone.now()
             pago.codigo_transaccion = f"STRIPE-{obj_payment_intent or obj_id}"
             pago.save()
+            logger.info("[Stripe Webhook] Pago marcado como PAGADO")
 
             # Guardar log de transacción exitosa
             TransaccionPago.objects.create(
@@ -193,6 +197,7 @@ class StripePaymentsWebhookView(APIView):
 
             # Generar comprobante
             ComprobanteService.generar_comprobante(pago=pago)
+            logger.info("[Stripe Webhook] Comprobante generado")
             logger.info("Pago #%d confirmado y resuelto mediante Stripe Webhook.", pago.id_pago)
 
         elif event_type in ["payment_intent.payment_failed", "checkout.session.expired"]:

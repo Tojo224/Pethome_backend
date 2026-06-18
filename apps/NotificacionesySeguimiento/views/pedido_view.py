@@ -57,19 +57,7 @@ class PedidoListView(APIView):
         if role_name != RoleEnum.CLIENT.value:
             return Response({"detail": "Solo clientes pueden realizar pedidos móviles."}, status=status.HTTP_403_FORBIDDEN)
 
-        # 2. Evitar pedidos duplicados si ya hay uno PENDIENTE para este cliente/tenant
-        from apps.NotificacionesySeguimiento.models import Pedido
-        pedido_existente = Pedido.objects.filter(
-            usuario=user,
-            veterinaria_id=tenant_id,
-            estado_pedido="PENDIENTE",
-            estado=True
-        ).first()
-        if pedido_existente:
-            serializer = PedidoDetailSerializer(pedido_existente, context={"request": request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        # 3. Obtener carrito activo
+        # 2. Obtener carrito activo
         from apps.GestiondeVentasyPagos.models import CarritoTemporal, DetalleCarritoTemporal
         carrito = CarritoTemporal.objects.prefetch_related("detalles__producto").filter(
             veterinaria_id=tenant_id,
@@ -91,7 +79,7 @@ class PedidoListView(APIView):
         if tipo_entrega == "DOMICILIO" and not direccion_entrega:
             return Response({"direccion_entrega": "La dirección de entrega es obligatoria para pedidos a domicilio."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. Validar stock antes de crear el pedido (Criterio de aceptación #4)
+        # 3. Validar stock antes de crear/actualizar el pedido (Criterio de aceptación #4)
         from apps.GestionInventarioProveedores.models import PuntoInventario, StockPunto
         from decimal import Decimal
         punto_almacen = PuntoInventario.objects.filter(
@@ -109,6 +97,7 @@ class PedidoListView(APIView):
                     veterinaria_id=tenant_id,
                     punto_inventario=punto_almacen,
                     producto=det.producto,
+                    numero_lote__isnull=True,
                 ).first()
                 cant_disponible = stock.cantidad if stock else Decimal("0")
                 if cant_disponible < det.cantidad:
@@ -117,12 +106,47 @@ class PedidoListView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
-        # 3. Crear el Pedido
+        # Calcular totales
         from apps.NotificacionesySeguimiento.models import Pedido, DetallePedido
         costo_envio = Decimal("10.00") if tipo_entrega == "DOMICILIO" else Decimal("0.00")
         subtotal = carrito.total_estimado
         total = subtotal + costo_envio
 
+        # 4. Comprobar si ya existe un pedido PENDIENTE para este cliente/tenant
+        pedido_existente = Pedido.objects.filter(
+            usuario=user,
+            veterinaria_id=tenant_id,
+            estado_pedido="PENDIENTE",
+            estado=True
+        ).first()
+
+        if pedido_existente:
+            # Reutilizar y actualizar el pedido existente con el carrito actual
+            pedido_existente.detalles.all().delete()
+            pedido_existente.tipo_entrega = tipo_entrega
+            pedido_existente.direccion_entrega = direccion_entrega if tipo_entrega == "DOMICILIO" else None
+            pedido_existente.observacion = observacion
+            pedido_existente.subtotal = subtotal
+            pedido_existente.costo_envio = costo_envio
+            pedido_existente.total = total
+            pedido_existente.save()
+
+            # Crear detalles actualizados
+            for det in carrito.detalles.filter(estado=True):
+                if det.tipo_item == DetalleCarritoTemporal.TipoItem.PRODUCTO:
+                    DetallePedido.objects.create(
+                        pedido=pedido_existente,
+                        producto=det.producto,
+                        cantidad=int(det.cantidad),
+                        precio_unitario=det.precio_unitario_estimado,
+                        subtotal=det.subtotal_estimado,
+                        observacion=det.observacion,
+                    )
+            
+            serializer = PedidoDetailSerializer(pedido_existente, context={"request": request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # 5. Crear el Pedido nuevo si no existía uno pendiente
         pedido = Pedido.objects.create(
             usuario=user,
             veterinaria_id=tenant_id,
@@ -135,7 +159,7 @@ class PedidoListView(APIView):
             observacion=observacion,
         )
 
-        # 4. Crear los detalles del Pedido
+        # Crear detalles
         for det in carrito.detalles.filter(estado=True):
             if det.tipo_item == DetalleCarritoTemporal.TipoItem.PRODUCTO:
                 DetallePedido.objects.create(

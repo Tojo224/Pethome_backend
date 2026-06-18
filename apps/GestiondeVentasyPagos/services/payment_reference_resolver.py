@@ -57,6 +57,7 @@ class PaymentReferenceResolver:
 
         if pedido.estado_pedido == "CONFIRMADO":
             logger.info("Pedido #%d ya está CONFIRMADO.", referencia_id)
+            logger.info("[Stripe Webhook] Pedido marcado como CONFIRMADO")
             return
 
         # Volver a validar stock del pedido antes de proceder
@@ -81,7 +82,9 @@ class PaymentReferenceResolver:
                     motivo=f"Despacho Pedido Móvil #{pedido.id_pedido}",
                 )
             logger.info("Inventario descontado exitosamente para Pedido #%d.", referencia_id)
+            logger.info("[Stripe Webhook] Inventario actualizado")
             pedido.estado_pedido = "CONFIRMADO"
+            logger.info("[Stripe Webhook] Pedido marcado como CONFIRMADO")
 
         pedido.save(update_fields=["estado_pedido", "observacion", "fecha_actualizacion"])
 
@@ -89,6 +92,7 @@ class PaymentReferenceResolver:
         try:
             CarritoService.vaciar_carrito(user=pedido.usuario, tenant_id=tenant_id)
             logger.info("Carrito temporal vaciado para el usuario del Pedido #%d.", referencia_id)
+            logger.info("[Stripe Webhook] Carrito temporal vaciado")
         except Exception as e:
             logger.exception("Error al vaciar carrito para el Pedido #%d: %s", referencia_id, str(e))
 
@@ -132,6 +136,7 @@ class PaymentReferenceResolver:
                 veterinaria_id=tenant_id,
                 punto_inventario=punto_almacen,
                 producto=producto,
+                numero_lote__isnull=True,
             ).first()
             cantidad_disponible = stock.cantidad if stock else Decimal("0")
             if cantidad_disponible < Decimal(str(detalle.cantidad)):

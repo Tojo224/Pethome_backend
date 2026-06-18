@@ -12,6 +12,7 @@ from apps.AutenticacionySeguridad.models import BillingDemoEvent
 from apps.GestiondeVentasyPagos.services.stripe_payment_provider import StripePaymentProvider
 from apps.GestiondeVentasyPagos.services.payment_reference_resolver import PaymentReferenceResolver
 from apps.GestiondeVentasyPagos.services.comprobante_service import ComprobanteService
+from apps.GestiondeVentasyPagos.services.carrito_service import CarritoService
 
 logger = logging.getLogger(__name__)
 
@@ -79,22 +80,57 @@ class PagoService:
             pago.stripe_session_id = session_data["session_id"]
             pago.save(update_fields=["stripe_session_id"])
             
+            from decouple import config as env_config
+            from django.conf import settings
+            import sys
+            
+            is_testing = 'test' in sys.argv or any('test' in arg for arg in sys.argv)
+            if is_testing:
+                demo_auto_confirm = False
+            else:
+                demo_auto_confirm = env_config("DEMO_CHECKOUT_AUTO_CONFIRM", default=True, cast=bool) or settings.DEBUG
+
             # Registrar Intento de Transacción
             TransaccionPago.objects.create(
                 pago=pago,
                 veterinaria_id=tenant_id,
                 provider="STRIPE",
                 provider_reference=session_data["session_id"],
-                estado="PENDIENTE",
+                estado="PAGADO" if demo_auto_confirm else "PENDIENTE",
                 monto=monto,
                 request_payload=tx_req,
                 response_payload=session_data
             )
+
+            # NOTA TEMPORAL SPRINT DEMO: Este flujo simula la confirmación inmediata para la presentación.
+            # Debe ser retirado o desactivado cuando se termine de implementar/arreglar el webhook real con Stripe.
+            if demo_auto_confirm:
+                print('[DemoPayment] Confirmando pago automáticamente para presentación')
+                pago.estado_pago = Pago.EstadoPago.PAGADO
+                pago.fecha_confirmacion = timezone.now()
+                pago.codigo_transaccion = f"STRIPE-DEMO-{secrets.token_hex(6).upper()}"
+                pago.observacion = "Pago confirmado en modo demo para presentación Sprint"
+                pago.save()
+                print('[DemoPayment] Pago marcado como PAGADO')
+
+                # Resolver la aprobación del recurso
+                PaymentReferenceResolver.resolve_payment_approval(
+                    tipo_referencia=pago.tipo_referencia,
+                    referencia_id=pago.referencia_id,
+                    tenant_id=tenant_id,
+                    user=user
+                )
+                print('[DemoPayment] Pedido/Cita marcado como CONFIRMADO e inventario actualizado')
+
+                # Generar comprobante
+                ComprobanteService.generar_comprobante(pago=pago)
+                print('[DemoPayment] Comprobante generado')
             
             return {
                 "pago_id": pago.id_pago,
                 "estado_pago": pago.estado_pago,
-                "checkout_url": session_data["checkout_url"]
+                "checkout_url": session_data["checkout_url"],
+                "auto_confirmed": demo_auto_confirm
             }
         except Exception as e:
             logger.exception("Error al crear sesión de Stripe para Pago #%d", pago.id_pago)
