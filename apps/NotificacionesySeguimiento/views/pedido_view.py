@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -42,6 +43,112 @@ class PedidoListView(APIView):
 
         serializer = PedidoListSerializer(filterset.qs, many=True, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @transaction.atomic
+    def post(self, request):
+        user = request.user
+        tenant_id = getattr(user, "veterinaria_id", None)
+        if not tenant_id:
+            return Response({"detail": "No se pudo resolver la veterinaria del usuario."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 1. Validar rol de cliente
+        from apps.AutenticacionySeguridad.enums.roles import RoleEnum
+        role_name = (getattr(getattr(user, "role", None), "nombre", "") or "").upper()
+        if role_name != RoleEnum.CLIENT.value:
+            return Response({"detail": "Solo clientes pueden realizar pedidos móviles."}, status=status.HTTP_403_FORBIDDEN)
+
+        # 2. Evitar pedidos duplicados si ya hay uno PENDIENTE para este cliente/tenant
+        from apps.NotificacionesySeguimiento.models import Pedido
+        pedido_existente = Pedido.objects.filter(
+            usuario=user,
+            veterinaria_id=tenant_id,
+            estado_pedido="PENDIENTE",
+            estado=True
+        ).first()
+        if pedido_existente:
+            serializer = PedidoDetailSerializer(pedido_existente, context={"request": request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # 3. Obtener carrito activo
+        from apps.GestiondeVentasyPagos.models import CarritoTemporal, DetalleCarritoTemporal
+        carrito = CarritoTemporal.objects.prefetch_related("detalles__producto").filter(
+            veterinaria_id=tenant_id,
+            cliente=user,
+            estado=True,
+            estado_carrito=CarritoTemporal.EstadoCarrito.ACTIVO,
+        ).first()
+
+        if not carrito or not carrito.detalles.filter(estado=True).exists():
+            return Response({"detail": "El carrito está vacío."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Leer body params
+        tipo_entrega = request.data.get("tipo_entrega", "DOMICILIO")
+        direccion_entrega = request.data.get("direccion_entrega")
+        observacion = request.data.get("observacion", "")
+
+        if tipo_entrega not in ["DOMICILIO", "RECOJO"]:
+            return Response({"tipo_entrega": "Tipo de entrega no válido."}, status=status.HTTP_400_BAD_REQUEST)
+        if tipo_entrega == "DOMICILIO" and not direccion_entrega:
+            return Response({"direccion_entrega": "La dirección de entrega es obligatoria para pedidos a domicilio."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2. Validar stock antes de crear el pedido (Criterio de aceptación #4)
+        from apps.GestionInventarioProveedores.models import PuntoInventario, StockPunto
+        from decimal import Decimal
+        punto_almacen = PuntoInventario.objects.filter(
+            veterinaria_id=tenant_id,
+            estado=True,
+            tipo=PuntoInventario.TipoPunto.ALMACEN_GENERAL,
+        ).order_by("id_punto").first()
+        
+        if not punto_almacen:
+            return Response({"detail": "No existe almacén principal configurado en la veterinaria para despachar productos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        for det in carrito.detalles.filter(estado=True):
+            if det.tipo_item == DetalleCarritoTemporal.TipoItem.PRODUCTO:
+                stock = StockPunto.objects.filter(
+                    veterinaria_id=tenant_id,
+                    punto_inventario=punto_almacen,
+                    producto=det.producto,
+                ).first()
+                cant_disponible = stock.cantidad if stock else Decimal("0")
+                if cant_disponible < det.cantidad:
+                    return Response(
+                        {"detail": f"Stock insuficiente para el producto '{det.producto.nombre}'. Disponible: {cant_disponible}, Requerido: {det.cantidad}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+        # 3. Crear el Pedido
+        from apps.NotificacionesySeguimiento.models import Pedido, DetallePedido
+        costo_envio = Decimal("10.00") if tipo_entrega == "DOMICILIO" else Decimal("0.00")
+        subtotal = carrito.total_estimado
+        total = subtotal + costo_envio
+
+        pedido = Pedido.objects.create(
+            usuario=user,
+            veterinaria_id=tenant_id,
+            direccion_entrega=direccion_entrega if tipo_entrega == "DOMICILIO" else None,
+            tipo_entrega=tipo_entrega,
+            estado_pedido="PENDIENTE",
+            subtotal=subtotal,
+            costo_envio=costo_envio,
+            total=total,
+            observacion=observacion,
+        )
+
+        # 4. Crear los detalles del Pedido
+        for det in carrito.detalles.filter(estado=True):
+            if det.tipo_item == DetalleCarritoTemporal.TipoItem.PRODUCTO:
+                DetallePedido.objects.create(
+                    pedido=pedido,
+                    producto=det.producto,
+                    cantidad=int(det.cantidad),
+                    precio_unitario=det.precio_unitario_estimado,
+                    subtotal=det.subtotal_estimado,
+                    observacion=det.observacion,
+                )
+
+        serializer = PedidoDetailSerializer(pedido, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class PedidoDetailView(APIView):

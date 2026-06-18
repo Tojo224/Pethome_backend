@@ -4,6 +4,7 @@
 
 # ─── Variables de entorno y secretos ────────────────────────
 .env
+*.env
 .env.local
 .env.*.local
 adminsdk.json
@@ -12,8 +13,9 @@ serviceAccountKey.json
 firebase-adminsdk.json
 *-firebase-adminsdk-*.json
 *.json.secret
+*.json
 gcs-credentials.json
-
+service-account*.json
 # ─── Python ─────────────────────────────────────────────────
 __pycache__/
 *.py[cod]

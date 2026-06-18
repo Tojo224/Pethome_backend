@@ -5,6 +5,7 @@ from django.db import models
 class Venta(models.Model):
     class EstadoVenta(models.TextChoices):
         PENDIENTE_COBRO = "PENDIENTE_COBRO", "Pendiente de cobro"
+        PAGADA = "PAGADA", "Pagada"
         ANULADA = "ANULADA", "Anulada"
 
     id_venta = models.AutoField(primary_key=True)
