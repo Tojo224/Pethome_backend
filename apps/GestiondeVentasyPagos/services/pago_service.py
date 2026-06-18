@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class PagoService:
     @classmethod
     @transaction.atomic
-    def iniciar_pago_online(cls, *, tipo_referencia: str, referencia_id: int, user, tenant_id: int) -> dict:
+    def iniciar_pago_online(cls, *, tipo_referencia: str, referencia_id: int, user, tenant_id: int, origen: str = "WEB") -> dict:
         """
         Inicializa un pago en línea (Stripe Checkout Session).
         """
@@ -75,7 +75,7 @@ class PagoService:
         }
         
         try:
-            session_data = StripePaymentProvider.create_checkout_session(pago=pago, concept=concept)
+            session_data = StripePaymentProvider.create_checkout_session(pago=pago, concept=concept, origen=origen)
             pago.stripe_session_id = session_data["session_id"]
             pago.save(update_fields=["stripe_session_id"])
             

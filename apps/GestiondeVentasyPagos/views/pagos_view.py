@@ -45,6 +45,7 @@ class PagoCheckoutSessionView(TenantViewMixin, APIView):
             referencia_id=data["referencia_id"],
             user=request.user,
             tenant_id=tenant_id,
+            origen=data.get("origen", "WEB"),
         )
         return Response(result, status=status.HTTP_201_CREATED)
 

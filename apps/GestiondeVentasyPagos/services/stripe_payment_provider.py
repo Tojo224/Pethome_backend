@@ -18,22 +18,24 @@ class StripePaymentProvider:
         return bool(stripe) and bool(stripe_secret)
 
     @classmethod
-    def create_checkout_session(cls, *, pago, concept: str) -> dict:
+    def create_checkout_session(cls, *, pago, concept: str, origen: str = "WEB") -> dict:
         if not cls.is_enabled():
             raise ValueError("Stripe no está configurado o el SDK no está instalado.")
 
         stripe.api_key = config("STRIPE_SECRET_KEY")
-        
-        frontend_success_url = config("STRIPE_SUCCESS_URL", default="http://localhost:3000/billing/success")
-        frontend_cancel_url = config("STRIPE_CANCEL_URL", default="http://localhost:3000/billing/cancel")
         currency = (config("STRIPE_CURRENCY", default="usd") or "usd").lower()
 
         amount = Decimal(str(pago.monto or 0))
         amount_cents = int(amount * 100)
 
-        # Inyectar el id_pago en las URLs para facilitar la redirección y consulta del frontend
-        success_url = f"{frontend_success_url}?pago_id={pago.id_pago}&success=true"
-        cancel_url = f"{frontend_cancel_url}?pago_id={pago.id_pago}&cancel=true"
+        if origen == "MOBILE":
+            success_url = f"pethome://payment-success?pago_id={pago.id_pago}&success=true"
+            cancel_url = f"pethome://payment-cancel?pago_id={pago.id_pago}&cancel=true"
+        else:
+            frontend_success_url = config("STRIPE_SUCCESS_URL", default="http://localhost:3000/billing/success")
+            frontend_cancel_url = config("STRIPE_CANCEL_URL", default="http://localhost:3000/billing/cancel")
+            success_url = f"{frontend_success_url}?pago_id={pago.id_pago}&success=true"
+            cancel_url = f"{frontend_cancel_url}?pago_id={pago.id_pago}&cancel=true"
 
         # Resolver el id de veterinaria (o None para SaaS global)
         tenant_id = pago.veterinaria_id if pago.veterinaria else None

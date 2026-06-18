@@ -6,6 +6,7 @@ class PagoCheckoutSerializer(serializers.Serializer):
     tipo_referencia = serializers.ChoiceField(choices=Pago.TipoReferencia.choices)
     referencia_id = serializers.IntegerField()
     metodo_pago = serializers.ChoiceField(choices=[Pago.MetodoPago.STRIPE])
+    origen = serializers.ChoiceField(choices=["WEB", "MOBILE"], required=False, default="WEB")
 
 
 class PagoConfirmarManualSerializer(serializers.Serializer):
