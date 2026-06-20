@@ -9,6 +9,7 @@ from .serializers import (
     ReporteGeneradoSerializer,
     GenerarEstaticoSerializer,
     GenerarDinamicoSerializer,
+    DashboardKPISerializer,
 )
 from .models import ReporteGenerado
 from .services import (
@@ -54,6 +55,29 @@ class KPIsView(APIView):
                 "total_mascotas": total_mascotas,
             }
         )
+
+
+class DashboardKPIsView(APIView):
+    permission_classes = [IsAuthenticated, IsReporteRole]
+
+    def get(self, request):
+        serializer = DashboardKPISerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        params = serializer.validated_data
+        user = request.user
+        id_vet = request.query_params.get("id_veterinaria")
+
+        from .services import report_scope_service
+        scope = report_scope_service.resolve_scope(user, id_vet)
+
+        from .services.dashboard_kpi_service import build_dashboard_kpis
+        data = build_dashboard_kpis(
+            scope,
+            periodo=params.get("periodo"),
+            fecha_inicio=params.get("fecha_inicio"),
+            fecha_fin=params.get("fecha_fin"),
+        )
+        return Response(data)
 
 
 class ListStaticReportsView(APIView):
