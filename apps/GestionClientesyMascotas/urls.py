@@ -7,6 +7,7 @@ from .views.cliente_view import ClienteDetailView, ClienteListCreateView, Client
 from .views.register_cliente_view import RegisterClienteView
 
 from .views.mascota_view import MascotaViewSet
+from .views.adopcion_view import AdopcionViewSet
 from .views.mascota_perfil_view import (
     MascotaPerfilView,
     MascotaHistorialClinicoView,
@@ -24,6 +25,7 @@ app_name = "clientes"
 
 router = DefaultRouter()
 router.register(r"mascotas", MascotaViewSet, basename="mascota")
+router.register(r"adopciones", AdopcionViewSet, basename="adopcion")
 
 urlpatterns = [
     # CLIENTES
