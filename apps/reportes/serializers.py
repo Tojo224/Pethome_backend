@@ -58,3 +58,13 @@ class GenerarDinamicoSerializer(serializers.Serializer):
     dimensiones = serializers.ListField(child=serializers.CharField(), required=False)
     filtros = serializers.JSONField(required=False)
     formato = FormatoReporteField(choices=["PDF", "EXCEL", "HTML"], default="PDF")
+
+
+class DashboardKPISerializer(serializers.Serializer):
+    periodo = serializers.ChoiceField(
+        choices=["hoy", "semana", "mes"],
+        required=False,
+        allow_blank=True,
+    )
+    fecha_inicio = serializers.DateField(required=False, allow_null=True)
+    fecha_fin = serializers.DateField(required=False, allow_null=True)
