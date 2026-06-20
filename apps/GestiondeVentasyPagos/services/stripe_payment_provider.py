@@ -1,7 +1,8 @@
 import logging
 from decimal import Decimal
-from django.conf import settings
+
 from decouple import config
+from django.conf import settings
 
 try:
     import stripe  # type: ignore
@@ -19,8 +20,20 @@ class StripePaymentProvider:
 
     @classmethod
     def create_checkout_session(cls, *, pago, concept: str, origen: str = "WEB") -> dict:
+        demo_auto_confirm = config(
+            "DEMO_CHECKOUT_AUTO_CONFIRM",
+            default=settings.DEBUG,
+            cast=bool,
+        )
+
         if not cls.is_enabled():
-            raise ValueError("Stripe no está configurado o el SDK no está instalado.")
+            if demo_auto_confirm:
+                return {
+                    "session_id": f"cs_demo_{pago.id_pago}",
+                    "checkout_url": "https://example.com/pethome-demo-checkout",
+                    "mode": "demo",
+                }
+            raise ValueError("Stripe no esta configurado o el SDK no esta instalado.")
 
         stripe.api_key = config("STRIPE_SECRET_KEY")
         currency = (config("STRIPE_CURRENCY", default="usd") or "usd").lower()
@@ -32,12 +45,17 @@ class StripePaymentProvider:
             success_url = f"pethome://payment-success?pago_id={pago.id_pago}&success=true"
             cancel_url = f"pethome://payment-cancel?pago_id={pago.id_pago}&cancel=true"
         else:
-            frontend_success_url = config("STRIPE_SUCCESS_URL", default="http://localhost:3000/billing/success")
-            frontend_cancel_url = config("STRIPE_CANCEL_URL", default="http://localhost:3000/billing/cancel")
+            frontend_success_url = config(
+                "STRIPE_SUCCESS_URL",
+                default="http://localhost:3000/billing/success",
+            )
+            frontend_cancel_url = config(
+                "STRIPE_CANCEL_URL",
+                default="http://localhost:3000/billing/cancel",
+            )
             success_url = f"{frontend_success_url}?pago_id={pago.id_pago}&success=true"
             cancel_url = f"{frontend_cancel_url}?pago_id={pago.id_pago}&cancel=true"
 
-        # Resolver el id de veterinaria (o None para SaaS global)
         tenant_id = pago.veterinaria_id if pago.veterinaria else None
 
         session = stripe.checkout.Session.create(
@@ -76,4 +94,5 @@ class StripePaymentProvider:
         return {
             "session_id": session.id,
             "checkout_url": getattr(session, "url", None),
+            "mode": "stripe",
         }
