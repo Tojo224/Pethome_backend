@@ -26,6 +26,7 @@ __pycache__/
 
 # ─── Entorno virtual ────────────────────────────────────────
 .venv/
+.venv_fresh*/
 venv/
 env/
 ENV/

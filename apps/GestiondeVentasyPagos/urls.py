@@ -15,6 +15,10 @@ from apps.GestiondeVentasyPagos.views.pagos_view import (
     ComprobantePagoViewSet,
     StripePaymentsWebhookView,
 )
+from apps.GestiondeVentasyPagos.views.historial_transacciones_view import (
+    HistorialTransaccionesDetailView,
+    HistorialTransaccionesListView,
+)
 
 router = DefaultRouter()
 router.register(r"pagos", PagoViewSet, basename="pago")
@@ -32,6 +36,16 @@ venta_detail = VentaViewSet.as_view({
 urlpatterns = [
     path("ventas/", venta_list, name="venta-list"),
     path("ventas/<int:pk>/", venta_detail, name="venta-detail"),
+    path(
+        "historial-transacciones/",
+        HistorialTransaccionesListView.as_view(),
+        name="historial-transacciones-list",
+    ),
+    path(
+        "historial-transacciones/<int:id_pago>/",
+        HistorialTransaccionesDetailView.as_view(),
+        name="historial-transacciones-detail",
+    ),
     path("carrito/", CarritoDetalleView.as_view(), name="carrito-detail"),
     path("carrito/items/", CarritoItemCreateView.as_view(), name="carrito-item-create"),
     path("carrito/items/<int:detalle_id>/", CarritoItemDetailView.as_view(), name="carrito-item-detail"),
