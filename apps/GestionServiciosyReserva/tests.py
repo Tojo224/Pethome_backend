@@ -1,4 +1,4 @@
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 
 from django.test import override_settings
 from django.utils import timezone
@@ -30,7 +30,7 @@ from apps.GestionServiciosyReserva.models import (
 	UnidadMovilAsignacion,
 	UnidadMovilAsignacionPersonal,
 )
-from apps.NotificacionesySeguimiento.models import Seguimiento
+from apps.NotificacionesySeguimiento.models import Pedido, Seguimiento
 
 FERNET_TEST_KEY = "y-8vRXvZL5t7I8S_dZd2a0B7aKXzH_kL8BkpE9SLiW8="
 
@@ -609,8 +609,8 @@ class RutasProgramadasTests(APITestCase):
 			estado="CONFIRMADA",
 			veterinaria=self.vet,
 		)
-		self.cita_clinica = Cita.objects.create(
-			usuario=self.cliente_user,
+			self.cita_clinica = Cita.objects.create(
+				usuario=self.cliente_user,
 			mascota=self.mascota,
 			servicio=self.servicio,
 			precio_servicio=self.precio,
@@ -618,9 +618,32 @@ class RutasProgramadasTests(APITestCase):
 			hora_inicio=time(10, 0),
 			hora_fin=time(10, 40),
 			modalidad="CLINICA",
-			estado="CONFIRMADA",
-			veterinaria=self.vet,
-		)
+				estado="CONFIRMADA",
+				veterinaria=self.vet,
+			)
+			self.pedido_domicilio = Pedido.objects.create(
+				usuario=self.cliente_user,
+				veterinaria=self.vet,
+				direccion_entrega="-17.7799,-63.1777",
+				tipo_entrega="DOMICILIO",
+				estado_pedido="CONFIRMADO",
+				subtotal=65,
+				total=65,
+			)
+			Pedido.objects.filter(id_pedido=self.pedido_domicilio.id_pedido).update(
+				fecha_pedido=timezone.make_aware(datetime.combine(self.fecha, time(8, 15))),
+			)
+			self.pedido_domicilio.refresh_from_db()
+			self.pedido_ligado = Pedido.objects.create(
+				usuario=self.cliente_user,
+				veterinaria=self.vet,
+				cita=self.cita_domicilio,
+				direccion_entrega="-17.7833,-63.1821",
+				tipo_entrega="DOMICILIO",
+				estado_pedido="CONFIRMADO",
+				subtotal=100,
+				total=100,
+			)
 
 	def _crear_unidad_y_ruta(self):
 		self.client.force_login(self.admin)
@@ -650,7 +673,7 @@ class RutasProgramadasTests(APITestCase):
 		self.assertEqual(ruta_response.status_code, status.HTTP_201_CREATED)
 		return unidad_response.data, ruta_response.data
 
-	def test_admin_can_create_route_and_assign_domicilio_cita(self):
+		def test_admin_can_create_route_and_assign_domicilio_cita(self):
 		_, ruta = self._crear_unidad_y_ruta()
 
 		detalle_response = self.client.post(
@@ -663,10 +686,43 @@ class RutasProgramadasTests(APITestCase):
 			format="json",
 		)
 		self.assertEqual(detalle_response.status_code, status.HTTP_201_CREATED)
-		self.assertEqual(detalle_response.data["cita"]["direccion_cita"], "-17.7833,-63.1821")
-		self.assertEqual(detalle_response.data["orden"], 1)
+			self.assertEqual(detalle_response.data["cita"]["direccion_cita"], "-17.7833,-63.1821")
+			self.assertEqual(detalle_response.data["orden"], 1)
 
-	def test_cannot_assign_clinica_cita_to_route(self):
+		def test_admin_can_assign_domicilio_pedido_to_route(self):
+			_, ruta = self._crear_unidad_y_ruta()
+
+			detalle_response = self.client.post(
+				f"/api/rutas-programadas/{ruta['id_ruta']}/detalle/",
+				{
+					"id_pedido": self.pedido_domicilio.id_pedido,
+					"orden": 1,
+					"hora_estimada": "08:30:00",
+				},
+				format="json",
+			)
+			self.assertEqual(detalle_response.status_code, status.HTTP_201_CREATED)
+			self.assertEqual(detalle_response.data["tipo_referencia"], "PEDIDO")
+			self.assertEqual(detalle_response.data["pedido"]["id_pedido"], self.pedido_domicilio.id_pedido)
+			self.assertEqual(detalle_response.data["pedido"]["direccion_entrega"], "-17.7799,-63.1777")
+			self.assertIsNone(detalle_response.data["cita"])
+
+		def test_admin_can_assign_pedido_ligado_a_cita_and_preserves_context(self):
+			_, ruta = self._crear_unidad_y_ruta()
+
+			detalle_response = self.client.post(
+				f"/api/rutas-programadas/{ruta['id_ruta']}/detalle/",
+				{
+					"id_pedido": self.pedido_ligado.id_pedido,
+					"orden": 1,
+				},
+				format="json",
+			)
+			self.assertEqual(detalle_response.status_code, status.HTTP_201_CREATED)
+			self.assertEqual(detalle_response.data["pedido"]["id_pedido"], self.pedido_ligado.id_pedido)
+			self.assertEqual(detalle_response.data["cita"]["id_cita"], self.cita_domicilio.id_cita)
+
+		def test_cannot_assign_clinica_cita_to_route(self):
 		_, ruta = self._crear_unidad_y_ruta()
 
 		response = self.client.post(

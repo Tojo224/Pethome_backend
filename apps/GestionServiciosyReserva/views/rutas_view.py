@@ -41,7 +41,8 @@ def build_ruta_queryset(tenant_id):
                     "cita__servicio",
                     "cita__mascota",
                     "cita__usuario__perfil",
-                ).prefetch_related("cita__seguimientos"),
+                    "pedido__usuario__perfil",
+                ).prefetch_related("cita__seguimientos", "pedido__seguimientos"),
             )
         )
         .annotate(cantidad_citas=Count("detalles"))
@@ -243,8 +244,9 @@ class RutaProgramadaDetalleListCreateView(TenantViewMixin, APIView):
                 "cita__servicio",
                 "cita__mascota",
                 "cita__usuario__perfil",
+                "pedido__usuario__perfil",
             )
-            .prefetch_related("cita__seguimientos")
+            .prefetch_related("cita__seguimientos", "pedido__seguimientos")
             .get(pk=detalle.pk)
         )
         return Response(DetalleRutaReadSerializer(detalle).data, status=status.HTTP_201_CREATED)
@@ -264,8 +266,9 @@ class DetalleRutaDetailView(TenantViewMixin, APIView):
                 "cita__servicio",
                 "cita__mascota",
                 "cita__usuario__perfil",
+                "pedido__usuario__perfil",
             )
-            .prefetch_related("cita__seguimientos")
+            .prefetch_related("cita__seguimientos", "pedido__seguimientos")
         )
         if not is_admin_like(request.user):
             role_name = get_user_role_name(request.user)

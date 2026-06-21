@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db.models import Q
 
 from apps.GestiondeVentasyPagos.models import Pago
 
@@ -83,16 +84,51 @@ class PedidoListSerializer(serializers.ModelSerializer):
 
         return PedidoCitaRelacionadaSerializer(payload).data
 
+    @staticmethod
+    def _payment_priority(estado_pago):
+        priorities = {
+            Pago.EstadoPago.PAGADO: 6,
+            Pago.EstadoPago.EN_PROCESO: 5,
+            Pago.EstadoPago.PENDIENTE: 4,
+            Pago.EstadoPago.ANULADO: 3,
+            Pago.EstadoPago.RECHAZADO: 2,
+            Pago.EstadoPago.FALLIDO: 1,
+        }
+        return priorities.get(estado_pago, 0)
+
+    @classmethod
+    def _select_best_payment(cls, pagos_queryset):
+        pagos = list(pagos_queryset)
+        if not pagos:
+            return None
+
+        pagos.sort(
+            key=lambda pago: (
+                cls._payment_priority(getattr(pago, "estado_pago", None)),
+                getattr(pago, "fecha_confirmacion", None) or getattr(pago, "fecha_creacion", None),
+            ),
+            reverse=True,
+        )
+        return pagos[0]
+
     def get_estado_pago(self, obj):
         pagos = getattr(obj, "_prefetched_payments", None)
         if pagos is None:
-            pagos = Pago.objects.filter(
-                veterinaria_id=obj.veterinaria_id,
+            filtros = Q(
                 tipo_referencia=Pago.TipoReferencia.PEDIDO_MOVIL,
                 referencia_id=obj.id_pedido,
-            ).order_by("-fecha_creacion")
+            )
 
-        pago = next(iter(pagos), None)
+            if getattr(obj, "cita_id", None):
+                filtros |= Q(
+                    tipo_referencia=Pago.TipoReferencia.CITA_SERVICIO,
+                    referencia_id=obj.cita_id,
+                )
+
+            pago = self._select_best_payment(Pago.objects.filter(filtros).order_by("-fecha_creacion"))
+            return getattr(pago, "estado_pago", None)
+
+        pago = self._select_best_payment(pagos)
         return getattr(pago, "estado_pago", None)
 
 
