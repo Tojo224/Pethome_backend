@@ -33,7 +33,10 @@ class PedidoSelector:
             Prefetch(
                 "veterinaria__pagos",
                 queryset=Pago.objects.filter(
-                    tipo_referencia=Pago.TipoReferencia.PEDIDO_MOVIL,
+                    tipo_referencia__in=[
+                        Pago.TipoReferencia.PEDIDO_MOVIL,
+                        Pago.TipoReferencia.CITA_SERVICIO,
+                    ],
                 ).order_by("-fecha_creacion"),
                 to_attr="_tenant_payments_for_orders",
             ),
@@ -112,6 +115,33 @@ class PedidoSelector:
             "_tenant_payments_for_orders",
             [],
         )
-        pedido._prefetched_payments = [
+        related_payments = [
             pago for pago in tenant_payments if pago.referencia_id == pedido.id_pedido
         ]
+        if getattr(pedido, "cita_id", None):
+            related_payments.extend(
+                [
+                    pago
+                    for pago in tenant_payments
+                    if (
+                        pago.tipo_referencia == Pago.TipoReferencia.CITA_SERVICIO
+                        and pago.referencia_id == pedido.cita_id
+                    )
+                ]
+            )
+
+        if not related_payments:
+            fallback_filter = Q(
+                tipo_referencia=Pago.TipoReferencia.PEDIDO_MOVIL,
+                referencia_id=pedido.id_pedido,
+            )
+            if getattr(pedido, "cita_id", None):
+                fallback_filter |= Q(
+                    tipo_referencia=Pago.TipoReferencia.CITA_SERVICIO,
+                    referencia_id=pedido.cita_id,
+                )
+
+            fallback_qs = Pago.objects.filter(fallback_filter).order_by("-fecha_creacion")
+            related_payments = list(fallback_qs)
+
+        pedido._prefetched_payments = related_payments

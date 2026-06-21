@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 
 class UnidadMovil(models.Model):
@@ -90,6 +91,16 @@ class DetalleRuta(models.Model):
         db_column="id_cita",
         on_delete=models.CASCADE,
         related_name="detalles_ruta",
+        null=True,
+        blank=True,
+    )
+    pedido = models.ForeignKey(
+        "NotificacionesySeguimiento.Pedido",
+        db_column="id_pedido",
+        on_delete=models.CASCADE,
+        related_name="detalles_ruta",
+        null=True,
+        blank=True,
     )
     orden = models.IntegerField()
     hora_estimada = models.TimeField(blank=True, null=True)
@@ -108,15 +119,26 @@ class DetalleRuta(models.Model):
             models.UniqueConstraint(
                 fields=["ruta", "cita"],
                 name="uq_detalle_ruta_cita_por_ruta",
+                condition=Q(cita__isnull=False),
+            ),
+            models.UniqueConstraint(
+                fields=["ruta", "pedido"],
+                name="uq_detalle_ruta_pedido_por_ruta",
+                condition=Q(pedido__isnull=False),
             ),
             models.UniqueConstraint(
                 fields=["ruta", "orden"],
                 name="uq_detalle_ruta_orden_por_ruta",
             ),
+            models.CheckConstraint(
+                check=Q(cita__isnull=False) | Q(pedido__isnull=False),
+                name="ck_detalle_ruta_referencia_requerida",
+            ),
         ]
 
     def __str__(self):
-        return f"Ruta {self.ruta_id} - Cita {self.cita_id}"
+        referencia = f"Pedido {self.pedido_id}" if self.pedido_id else f"Cita {self.cita_id}"
+        return f"Ruta {self.ruta_id} - {referencia}"
 
 
 class UnidadMovilAsignacion(models.Model):
