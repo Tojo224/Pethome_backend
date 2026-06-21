@@ -392,7 +392,18 @@ class CU33SeguimientoPedidosAccessTests(APITestCase):
         self.assertIn(self.seg_pedido_publico_cliente_a.id_seguimiento, nested_ids)
         self.assertNotIn(self.seg_pedido_interno_cliente_a.id_seguimiento, nested_ids)
 
-    def test_06_admin_sees_data_of_own_tenant(self):
+    def test_06_pedido_detail_backfills_public_tracking_when_missing(self):
+        self.client.force_login(self.client_a_2)
+
+        response = self.client.get(self._pedido_detail_url(self.pedido_a_otro_cliente.id_pedido))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["estado_pedido"], "PENDIENTE")
+        self.assertEqual(len(response.data["seguimientos"]), 1)
+        self.assertEqual(response.data["seguimientos"][0]["estado_actual"], "PENDIENTE")
+        self.assertTrue(response.data["seguimientos"][0]["visible_cliente"])
+
+    def test_07_admin_sees_data_of_own_tenant(self):
         self.client.force_login(self.admin_a)
 
         pedidos_response = self.client.get(self.pedido_list_url)
@@ -406,7 +417,7 @@ class CU33SeguimientoPedidosAccessTests(APITestCase):
         self.assertIn(self.seg_pedido_interno_cliente_a.id_seguimiento, seguimientos_ids)
         self.assertIn(self.seg_cita_interno_asignada.id_seguimiento, seguimientos_ids)
 
-    def test_07_admin_does_not_see_data_from_other_tenant(self):
+    def test_08_admin_does_not_see_data_from_other_tenant(self):
         self.client.force_login(self.admin_a)
 
         pedidos_response = self.client.get(self.pedido_list_url)

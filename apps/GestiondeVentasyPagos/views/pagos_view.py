@@ -78,6 +78,16 @@ class PagoViewSet(TenantViewMixin, viewsets.ReadOnlyModelViewSet):
         tenant_id = self.get_tenant_id()
         return Pago.objects.filter(veterinaria_id=tenant_id).order_by("-fecha_creacion")
 
+    def retrieve(self, request, *args, **kwargs):
+        pago = self.get_object()
+        pago = PagoService.sincronizar_pago_stripe_pendiente(
+            pago=pago,
+            user=request.user,
+        )
+        pago.refresh_from_db()
+        serializer = self.get_serializer(pago)
+        return Response(serializer.data)
+
 
 class ComprobantePagoViewSet(TenantViewMixin, viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
