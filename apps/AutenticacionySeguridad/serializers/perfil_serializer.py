@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from ..models import Perfil
+from ..services.auth_security_service import validate_password_complexity
 from ..services.perfil_service import create_user_with_profile, update_user_with_profile
 
 class PerfilSerializer(serializers.ModelSerializer):
@@ -43,6 +44,10 @@ class PerfilCreateSerializer(serializers.ModelSerializer):
             "direccion",
             "id_veterinaria"
         ]
+
+    def validate_password(self, value):
+        validate_password_complexity(value, "password")
+        return value
 
     def create(self, validated_data):
         request = self.context.get("request")
@@ -88,6 +93,10 @@ class PerfilUpdateSerializer(serializers.ModelSerializer):
             "telefono",
             "direccion",
         ]
+
+    def validate_password(self, value):
+        validate_password_complexity(value, "password")
+        return value
     
     def update(self, instance, validated_data):
         return update_user_with_profile(

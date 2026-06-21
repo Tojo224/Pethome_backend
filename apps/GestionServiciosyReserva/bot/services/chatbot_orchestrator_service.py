@@ -5,6 +5,7 @@ from .chatbot_reprogramar_service import ChatbotReprogramarService
 from .chatbot_response_builder import ChatbotResponseBuilder
 from .chatbot_context_query_service import ChatbotContextQueryService
 from .chatbot_info_service import ChatbotInfoService
+from .chatbot_tienda_service import ChatbotTiendaService
 
 
 class ChatbotOrchestratorService:
@@ -12,6 +13,14 @@ class ChatbotOrchestratorService:
     def procesar_mensaje(*, user, veterinaria_id, mensaje, contexto=None):
         contexto = contexto or {}
         estado = contexto.get("estado")
+
+        if str(estado or "").upper().startswith("TIENDA_"):
+            return ChatbotTiendaService.procesar_mensaje(
+                user=user,
+                veterinaria_id=veterinaria_id,
+                mensaje=mensaje,
+                contexto=contexto,
+            )
 
         if estado:
             consulta = ChatbotContextQueryService.detectar_consulta_apoyo(mensaje)
@@ -139,6 +148,14 @@ class ChatbotOrchestratorService:
 
         if estado == "ESPERANDO_CONFIRMACION_CREAR_CITA":
             return ChatbotAgendarService.continuar_confirmacion_crear_cita(
+                user=user,
+                veterinaria_id=veterinaria_id,
+                mensaje=mensaje,
+                contexto=contexto,
+            )
+
+        if ChatbotTiendaService.es_mensaje_tienda(mensaje, contexto):
+            return ChatbotTiendaService.procesar_mensaje(
                 user=user,
                 veterinaria_id=veterinaria_id,
                 mensaje=mensaje,

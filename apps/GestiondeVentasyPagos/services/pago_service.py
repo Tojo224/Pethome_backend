@@ -20,6 +20,93 @@ logger = logging.getLogger(__name__)
 class PagoService:
     @classmethod
     @transaction.atomic
+    def sincronizar_pago_stripe_pendiente(cls, *, pago: Pago, user=None) -> Pago:
+        if not pago or pago.estado_pago == Pago.EstadoPago.PAGADO:
+            return pago
+
+        session_id = getattr(pago, "stripe_session_id", None)
+        if not session_id or not StripePaymentProvider.is_enabled():
+            return pago
+
+        try:
+            session = StripePaymentProvider.retrieve_checkout_session(session_id)
+        except Exception:
+            logger.exception(
+                "No se pudo consultar el estado de Stripe para Pago #%s",
+                getattr(pago, "id_pago", None),
+            )
+            return pago
+
+        if not session:
+            return pago
+
+        payment_status = getattr(session, "payment_status", None)
+        session_status = getattr(session, "status", None)
+        payment_intent = getattr(session, "payment_intent", None)
+
+        if payment_intent and pago.stripe_payment_intent_id != payment_intent:
+            pago.stripe_payment_intent_id = payment_intent
+
+        if payment_status == "paid":
+            if not Pago.objects.filter(
+                veterinaria_id=pago.veterinaria_id,
+                tipo_referencia=pago.tipo_referencia,
+                referencia_id=pago.referencia_id,
+                estado_pago=Pago.EstadoPago.PAGADO,
+            ).exclude(id_pago=pago.id_pago).exists():
+                pago.estado_pago = Pago.EstadoPago.PAGADO
+                pago.fecha_confirmacion = timezone.now()
+                pago.codigo_transaccion = f"STRIPE-{payment_intent or session_id}"
+                pago.save(
+                    update_fields=[
+                        "stripe_payment_intent_id",
+                        "estado_pago",
+                        "fecha_confirmacion",
+                        "codigo_transaccion",
+                    ]
+                )
+
+                if not TransaccionPago.objects.filter(
+                    pago=pago,
+                    provider="STRIPE",
+                    estado="PAGADO",
+                ).exists():
+                    TransaccionPago.objects.create(
+                        pago=pago,
+                        veterinaria_id=pago.veterinaria_id,
+                        provider="STRIPE",
+                        provider_reference=session_id,
+                        estado="PAGADO",
+                        monto=pago.monto,
+                        request_payload={"source": "stripe-session-sync"},
+                        response_payload={
+                            "status": "confirmed_by_session_polling",
+                            "session_id": session_id,
+                            "payment_intent": payment_intent,
+                        },
+                        fecha_respuesta=timezone.now(),
+                    )
+
+                PaymentReferenceResolver.resolve_payment_approval(
+                    tipo_referencia=pago.tipo_referencia,
+                    referencia_id=pago.referencia_id,
+                    tenant_id=pago.veterinaria_id,
+                    user=user or pago.usuario,
+                )
+                ComprobanteService.generar_comprobante(pago=pago)
+            return pago
+
+        if session_status == "expired":
+            pago.estado_pago = Pago.EstadoPago.FALLIDO
+            pago.save(update_fields=["stripe_payment_intent_id", "estado_pago"])
+
+        elif payment_intent:
+            pago.save(update_fields=["stripe_payment_intent_id"])
+
+        return pago
+
+    @classmethod
+    @transaction.atomic
     def iniciar_pago_online(cls, *, tipo_referencia: str, referencia_id: int, user, tenant_id: int, origen: str = "WEB") -> dict:
         """
         Inicializa un pago en línea (Stripe Checkout Session).
@@ -50,8 +137,9 @@ class PagoService:
         if pago:
             pago.metodo_pago = Pago.MetodoPago.STRIPE
             pago.monto = monto
+            pago.moneda = StripePaymentProvider.get_currency().upper()
             pago.usuario = user
-            pago.save(update_fields=["metodo_pago", "monto", "usuario"])
+            pago.save(update_fields=["metodo_pago", "monto", "moneda", "usuario"])
         else:
             codigo = f"TRX-{secrets.token_hex(6).upper()}"
             pago = Pago.objects.create(
@@ -63,6 +151,7 @@ class PagoService:
                 metodo_pago=Pago.MetodoPago.STRIPE,
                 estado_pago=Pago.EstadoPago.PENDIENTE,
                 monto=monto,
+                moneda=StripePaymentProvider.get_currency().upper(),
                 codigo_transaccion=codigo,
             )
 
@@ -81,14 +170,17 @@ class PagoService:
             pago.save(update_fields=["stripe_session_id"])
             
             from decouple import config as env_config
-            from django.conf import settings
             import sys
             
             is_testing = 'test' in sys.argv or any('test' in arg for arg in sys.argv)
             if is_testing:
                 demo_auto_confirm = False
             else:
-                demo_auto_confirm = env_config("DEMO_CHECKOUT_AUTO_CONFIRM", default=True, cast=bool) or settings.DEBUG
+                demo_auto_confirm = env_config(
+                    "DEMO_CHECKOUT_AUTO_CONFIRM",
+                    default=False,
+                    cast=bool,
+                )
 
             # Registrar Intento de Transacción
             TransaccionPago.objects.create(

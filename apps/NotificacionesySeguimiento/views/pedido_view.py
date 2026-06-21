@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from apps.GestionServiciosyReserva.models import Cita
 
 from ..filters import (
     ALLOWED_PEDIDO_FILTER_PARAMS,
@@ -41,7 +42,8 @@ class PedidoListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = PedidoListSerializer(filterset.qs, many=True, context={"request": request})
+        pedidos = PedidoSelector.enrich_pedidos(filterset.qs)
+        serializer = PedidoListSerializer(pedidos, many=True, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @transaction.atomic
@@ -73,6 +75,30 @@ class PedidoListView(APIView):
         tipo_entrega = request.data.get("tipo_entrega", "DOMICILIO")
         direccion_entrega = request.data.get("direccion_entrega")
         observacion = request.data.get("observacion", "")
+        cita_id = request.data.get("cita_id")
+
+        cita = None
+        if cita_id not in (None, "", 0, "0"):
+            try:
+                cita = Cita.objects.select_related("servicio").get(
+                    id_cita=int(cita_id),
+                    veterinaria_id=tenant_id,
+                )
+            except (TypeError, ValueError, Cita.DoesNotExist):
+                return Response(
+                    {
+                        "cita_id": (
+                            "La cita asociada no existe o no pertenece a esta veterinaria."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if cita.usuario_id != user.id_usuario:
+                return Response(
+                    {"cita_id": "Solo puedes vincular pedidos a tus propias citas."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         if tipo_entrega not in ["DOMICILIO", "RECOJO"]:
             return Response({"tipo_entrega": "Tipo de entrega no válido."}, status=status.HTTP_400_BAD_REQUEST)
@@ -126,6 +152,7 @@ class PedidoListView(APIView):
             pedido_existente.tipo_entrega = tipo_entrega
             pedido_existente.direccion_entrega = direccion_entrega if tipo_entrega == "DOMICILIO" else None
             pedido_existente.observacion = observacion
+            pedido_existente.cita = cita
             pedido_existente.subtotal = subtotal
             pedido_existente.costo_envio = costo_envio
             pedido_existente.total = total
@@ -150,6 +177,7 @@ class PedidoListView(APIView):
         pedido = Pedido.objects.create(
             usuario=user,
             veterinaria_id=tenant_id,
+            cita=cita,
             direccion_entrega=direccion_entrega if tipo_entrega == "DOMICILIO" else None,
             tipo_entrega=tipo_entrega,
             estado_pedido="PENDIENTE",

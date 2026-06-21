@@ -2,7 +2,11 @@ import logging
 from decimal import Decimal
 
 from decouple import config
-from django.conf import settings
+
+try:
+    import requests  # type: ignore
+except ImportError:
+    requests = None
 
 try:
     import stripe  # type: ignore
@@ -14,6 +18,22 @@ logger = logging.getLogger(__name__)
 
 class StripePaymentProvider:
     @staticmethod
+    def get_currency() -> str:
+        return "bob"
+
+    @staticmethod
+    def _configure_http_client() -> None:
+        if not stripe or not requests:
+            return
+
+        # En algunos entornos locales hay variables HTTP(S)_PROXY rotas
+        # que intentan redirigir Stripe a 127.0.0.1:9. Para Checkout
+        # necesitamos salir directo a api.stripe.com.
+        session = requests.Session()
+        session.trust_env = False
+        stripe.default_http_client = stripe.RequestsClient(session=session)
+
+    @staticmethod
     def is_enabled() -> bool:
         stripe_secret = config("STRIPE_SECRET_KEY", default="")
         return bool(stripe) and bool(stripe_secret)
@@ -22,7 +42,7 @@ class StripePaymentProvider:
     def create_checkout_session(cls, *, pago, concept: str, origen: str = "WEB") -> dict:
         demo_auto_confirm = config(
             "DEMO_CHECKOUT_AUTO_CONFIRM",
-            default=settings.DEBUG,
+            default=False,
             cast=bool,
         )
 
@@ -36,7 +56,8 @@ class StripePaymentProvider:
             raise ValueError("Stripe no esta configurado o el SDK no esta instalado.")
 
         stripe.api_key = config("STRIPE_SECRET_KEY")
-        currency = (config("STRIPE_CURRENCY", default="usd") or "usd").lower()
+        cls._configure_http_client()
+        currency = cls.get_currency()
 
         amount = Decimal(str(pago.monto or 0))
         amount_cents = int(amount * 100)
@@ -96,3 +117,12 @@ class StripePaymentProvider:
             "checkout_url": getattr(session, "url", None),
             "mode": "stripe",
         }
+
+    @classmethod
+    def retrieve_checkout_session(cls, session_id: str):
+        if not cls.is_enabled() or not session_id:
+            return None
+
+        stripe.api_key = config("STRIPE_SECRET_KEY")
+        cls._configure_http_client()
+        return stripe.checkout.Session.retrieve(session_id)

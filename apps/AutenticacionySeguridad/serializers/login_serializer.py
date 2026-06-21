@@ -5,6 +5,7 @@ from ..models import Suscripcion, Veterinaria
 from ..services.auth_security_service import (
     ensure_user_not_blocked,
     get_user_for_login,
+    validate_password_complexity,
     validate_login_password,
 )
 
@@ -158,3 +159,7 @@ class MobileRegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8)
     telefono = serializers.CharField(max_length=20, required=False, allow_blank=True)
     direccion = serializers.CharField(max_length=255, required=False, allow_blank=True)
+
+    def validate_password(self, value):
+        validate_password_complexity(value, "password")
+        return value

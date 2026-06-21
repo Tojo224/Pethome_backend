@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.GestiondeVentasyPagos.models import Pago
+
 from ..models import Pedido
 from ..permissions import is_client
 from .detallepedido_serializer import DetallePedidoSerializer
@@ -15,10 +17,25 @@ class PedidoSeguimientoRelacionadoSerializer(serializers.Serializer):
     visible_cliente = serializers.BooleanField(read_only=True)
 
 
+class PedidoServicioRelacionadoSerializer(serializers.Serializer):
+    id_servicio = serializers.IntegerField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+
+
+class PedidoCitaRelacionadaSerializer(serializers.Serializer):
+    id_cita = serializers.IntegerField(read_only=True)
+    fecha_programada = serializers.DateField(read_only=True)
+    hora_inicio = serializers.TimeField(read_only=True)
+    estado = serializers.CharField(read_only=True)
+    servicio = PedidoServicioRelacionadoSerializer(read_only=True)
+
+
 class PedidoListSerializer(serializers.ModelSerializer):
     usuario_id = serializers.IntegerField(source="usuario.id_usuario", read_only=True)
     usuario_correo = serializers.EmailField(source="usuario.correo", read_only=True)
     usuario_nombre = serializers.SerializerMethodField()
+    cita = serializers.SerializerMethodField()
+    estado_pago = serializers.SerializerMethodField()
 
     class Meta:
         model = Pedido
@@ -30,17 +47,53 @@ class PedidoListSerializer(serializers.ModelSerializer):
             "fecha_pedido",
             "tipo_entrega",
             "estado_pedido",
+            "cita",
             "subtotal",
             "costo_envio",
             "total",
             "observacion",
             "motivo_cancelacion",
+            "estado_pago",
             "estado",
         ]
 
     def get_usuario_nombre(self, obj):
         perfil = getattr(obj.usuario, "perfil", None)
         return getattr(perfil, "nombre", None)
+
+    def get_cita(self, obj):
+        cita = getattr(obj, "cita", None)
+        if cita is None:
+            return None
+
+        servicio = getattr(cita, "servicio", None)
+        payload = {
+            "id_cita": cita.id_cita,
+            "fecha_programada": cita.fecha_programada,
+            "hora_inicio": cita.hora_inicio,
+            "estado": cita.estado,
+            "servicio": None,
+        }
+
+        if servicio is not None:
+            payload["servicio"] = {
+                "id_servicio": servicio.id_servicio,
+                "nombre": servicio.nombre,
+            }
+
+        return PedidoCitaRelacionadaSerializer(payload).data
+
+    def get_estado_pago(self, obj):
+        pagos = getattr(obj, "_prefetched_payments", None)
+        if pagos is None:
+            pagos = Pago.objects.filter(
+                veterinaria_id=obj.veterinaria_id,
+                tipo_referencia=Pago.TipoReferencia.PEDIDO_MOVIL,
+                referencia_id=obj.id_pedido,
+            ).order_by("-fecha_creacion")
+
+        pago = next(iter(pagos), None)
+        return getattr(pago, "estado_pago", None)
 
 
 class PedidoDetailSerializer(PedidoListSerializer):
@@ -65,7 +118,7 @@ class PedidoDetailSerializer(PedidoListSerializer):
         is_client_user = bool(user and is_client(user))
 
         data = []
-        queryset = obj.seguimientos.all().order_by("-fecha_hora")
+        queryset = obj.seguimientos.order_by("-fecha_hora", "-id_seguimiento")
         if is_client_user:
             queryset = queryset.filter(visible_cliente=True)
 

@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.GestiondeVentasyPagos.models import Venta
 from apps.NotificacionesySeguimiento.models import Pedido
+from apps.NotificacionesySeguimiento.services.pedido_tracking_service import PedidoTrackingService
 from apps.GestionServiciosyReserva.models import Cita
 from apps.AutenticacionySeguridad.models import BillingDemoEvent, Suscripcion
 from apps.GestionInventarioProveedores.models import PuntoInventario, StockPunto, MovimientoInventario
@@ -87,6 +88,10 @@ class PaymentReferenceResolver:
             logger.info("[Stripe Webhook] Pedido marcado como CONFIRMADO")
 
         pedido.save(update_fields=["estado_pedido", "observacion", "fecha_actualizacion"])
+        PedidoTrackingService.ensure_public_status_tracking(
+            pedido=pedido,
+            actor=user or pedido.usuario,
+        )
 
         # Vaciar el carrito temporal del cliente
         try:

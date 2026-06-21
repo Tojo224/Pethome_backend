@@ -24,6 +24,13 @@ class Pedido(models.Model):
         on_delete=models.PROTECT,
         related_name="pedidos",
     )
+    cita = models.ForeignKey(
+        "GestionServiciosyReserva.Cita",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pedidos_producto",
+    )
 
     fecha_pedido = models.DateTimeField(auto_now_add=True)
     direccion_entrega = models.TextField(null=True, blank=True)

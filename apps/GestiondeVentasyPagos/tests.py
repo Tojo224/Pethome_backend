@@ -16,7 +16,7 @@ from apps.GestionInventarioProveedores.models import (
 )
 from apps.GestionServiciosyReserva.models import CategoriaServicio, Especie, PrecioServicio, Raza, Servicio, Cita
 from apps.GestiondeVentasyPagos.models import Venta, Pago, TransaccionPago, ComprobantePago
-from apps.NotificacionesySeguimiento.models import Pedido
+from apps.NotificacionesySeguimiento.models import Pedido, Seguimiento
 from apps.AutenticacionySeguridad.models import BillingDemoEvent
 from django.utils import timezone
 import json
@@ -630,6 +630,85 @@ class CU28PaymentsTests(APITestCase):
         self.assertFalse(
             MovimientoInventario.objects.filter(
                 motivo__contains=f"Despacho Pedido Móvil #{pedido_id}"
+            ).exists()
+        )
+
+        self.assertTrue(
+            Seguimiento.objects.filter(
+                pedido_id=pedido_id,
+                tipo_seguimiento="PEDIDO",
+                estado_actual="PENDIENTE",
+                visible_cliente=True,
+            ).exists()
+        )
+
+    def test_pago_aprobado_crea_seguimiento_publico_para_pedido_confirmado(self):
+        self.client.force_login(self.client_a)
+        self.client.post(
+            "/api/gestion/ventas-pagos/carrito/items/",
+            {
+                "tipo_item": "PRODUCTO",
+                "producto": self.producto.id_producto,
+                "cantidad": "2",
+            },
+            format="json",
+        )
+        pedido_response = self.client.post(
+            "/api/gestion/notificaciones/pedidos/",
+            {
+                "tipo_entrega": "RECOJO",
+            },
+            format="json",
+        )
+        self.assertEqual(pedido_response.status_code, status.HTTP_201_CREATED)
+        pedido_id = pedido_response.data["id_pedido"]
+
+        pago = Pago.objects.create(
+            veterinaria=self.vet_a,
+            usuario=self.client_a,
+            cliente=self.client_a,
+            tipo_referencia="PEDIDO_MOVIL",
+            referencia_id=pedido_id,
+            metodo_pago="STRIPE",
+            estado_pago="PENDIENTE",
+            monto=Decimal("20.00"),
+            stripe_session_id="cs_test_confirmado",
+        )
+
+        from unittest.mock import patch
+
+        payload = {
+            "id": "evt_test_confirmado",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_test_confirmado",
+                    "object": "checkout.session",
+                    "client_reference_id": str(pago.id_pago),
+                    "amount_total": 2000,
+                    "currency": "bob",
+                    "payment_status": "paid",
+                    "payment_intent": "pi_test_confirmado",
+                }
+            },
+        }
+
+        with patch("stripe.Webhook.construct_event") as mock_construct:
+            mock_construct.return_value = True
+            response = self.client.post(
+                "/api/gestion/ventas-pagos/pagos/stripe/webhook/",
+                payload,
+                format="json",
+                HTTP_STRIPE_SIGNATURE="t=123,v1=abc",
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertTrue(
+            Seguimiento.objects.filter(
+                pedido_id=pedido_id,
+                tipo_seguimiento="PEDIDO",
+                estado_actual="CONFIRMADO",
+                visible_cliente=True,
             ).exists()
         )
 

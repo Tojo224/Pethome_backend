@@ -1,4 +1,5 @@
 import secrets
+import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -14,6 +15,9 @@ from ..models import PasswordResetToken, User
 
 LOCKOUT_MESSAGE = "Tu cuenta esta bloqueada temporalmente por intentos fallidos. Intenta nuevamente mas tarde."
 GENERIC_LOGIN_MESSAGE = "Correo o contrasena incorrectos."
+PASSWORD_COMPLEXITY_MESSAGE = (
+    "La contrasena debe tener al menos 8 caracteres, una mayuscula, una minuscula y un caracter especial."
+)
 
 
 def get_lockout_config() -> tuple[int, int]:
@@ -28,6 +32,22 @@ def get_password_reset_expiration_minutes() -> int:
 
 def normalize_email(correo: str) -> str:
     return (correo or "").strip().lower()
+
+
+def validate_password_complexity(raw_password: str, field_name: str = "password") -> None:
+    password = raw_password or ""
+
+    if len(password) < 8:
+        raise ValidationError({field_name: [PASSWORD_COMPLEXITY_MESSAGE]})
+
+    if not re.search(r"[A-Z]", password):
+        raise ValidationError({field_name: [PASSWORD_COMPLEXITY_MESSAGE]})
+
+    if not re.search(r"[a-z]", password):
+        raise ValidationError({field_name: [PASSWORD_COMPLEXITY_MESSAGE]})
+
+    if not re.search(r"[^A-Za-z0-9]", password):
+        raise ValidationError({field_name: [PASSWORD_COMPLEXITY_MESSAGE]})
 
 
 def get_user_for_login(correo: str) -> User | None:
@@ -149,8 +169,7 @@ def send_password_reset_email(user: User, token: PasswordResetToken) -> None:
 
 
 def validate_new_password(user: User, nueva_password: str) -> None:
-    if len(nueva_password or "") < 8:
-        raise ValidationError({"nueva_password": ["La nueva contrasena debe tener al menos 8 caracteres."]})
+    validate_password_complexity(nueva_password, "nueva_password")
     try:
         password_validation.validate_password(nueva_password, user=user)
     except DjangoValidationError as exc:
