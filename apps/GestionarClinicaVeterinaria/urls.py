@@ -32,6 +32,11 @@ from apps.GestionarClinicaVeterinaria.views.archivo_clinico_view import (
 from apps.GestionarClinicaVeterinaria.views.veterinario_view import (
     VeterinarioListView,
 )
+from apps.GestionarClinicaVeterinaria.views.plan_sanitario_preventivo_view import (
+    PlanSanitarioClientesFilterView,
+    PlanSanitarioPorMascotaView,
+    PlanSanitarioDetailView,
+)
 
 urlpatterns = [
     path(
@@ -113,5 +118,20 @@ urlpatterns = [
         "veterinarios/",
         VeterinarioListView.as_view(),
         name="veterinario-list",
+    ),
+    path(
+        "clientes-plan-sanitario/",
+        PlanSanitarioClientesFilterView.as_view(),
+        name="plan-sanitario-clientes-filter",
+    ),
+    path(
+        "mascotas/<int:id_mascota>/plan-sanitario/",
+        PlanSanitarioPorMascotaView.as_view(),
+        name="plan-sanitario-por-mascota",
+    ),
+    path(
+        "planes-sanitarios/<int:id_plan>/",
+        PlanSanitarioDetailView.as_view(),
+        name="plan-sanitario-detail",
     ),
 ]

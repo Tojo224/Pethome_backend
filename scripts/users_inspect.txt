@@ -1,6 +1,6 @@
-count=18
+count=40
 (2, 'noelia@gmail.com', True, True)
-(3, 'admin@pethome.com', True, True)
+(3, 'admin@pethome.com', False, True)
 (4, 'anaC@gmail.com', False, True)
 (5, 'flabi@gmail.com', False, True)
 (6, 'joaquin@gmail.com', False, True)

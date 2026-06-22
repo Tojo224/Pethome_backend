@@ -25,9 +25,49 @@ class HasComponentPermission(BasePermission):
         "SERV_PRECIOS",
         "MOVIL_MI_PERFIL",
     }
+    client_read_only_fallback = {
+        "CLI_PLAN_SANITARIO",
+    }
+    veterinarian_component_fallback = {
+        "CLI_PLAN_SANITARIO",
+    }
     admin_write_fallback_components = {
         "INV_PRODUCTOS",
     }
+
+    def _has_role_fallback(self, *, role_name, component, action_field, tenant_id, user, perms):
+        if (
+            role_name == "ADMIN"
+            and getattr(user, "veterinaria_id", None) == tenant_id
+        ):
+            return True
+        if (
+            role_name == "CLIENT"
+            and component in self.client_read_only_fallback
+            and action_field == "puede_ver"
+            and getattr(user, "veterinaria_id", None) == tenant_id
+        ):
+            return True
+        if (
+            role_name == "CLIENT"
+            and component in self.client_component_fallback
+            and getattr(user, "veterinaria_id", None) == tenant_id
+        ):
+            return True
+        if (
+            role_name == "VETERINARIAN"
+            and component in self.veterinarian_component_fallback
+            and getattr(user, "veterinaria_id", None) == tenant_id
+        ):
+            return True
+        if (
+            role_name == "ADMIN"
+            and component in self.admin_write_fallback_components
+            and getattr(user, "veterinaria_id", None) == tenant_id
+            and perms.filter(puede_ver=True).exists()
+        ):
+            return True
+        return False
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
@@ -62,12 +102,16 @@ class HasComponentPermission(BasePermission):
         )
 
         role_name = (getattr(getattr(user, "role", None), "nombre", "") or "").upper()
-        # Fallback inmediato para ADMIN del tenant actual, incluso cuando
-        # todavía no terminó el seed de grupos/permisos base.
-        if not grupos_ids and role_name == "ADMIN" and getattr(user, "veterinaria_id", None) == tenant_id:
-            return True
+
         if not grupos_ids:
-            return False
+            return self._has_role_fallback(
+                role_name=role_name,
+                component=component,
+                action_field=action_field,
+                tenant_id=tenant_id,
+                user=user,
+                perms=GrupoPermisoComponente.objects.none(),
+            )
 
         perms = GrupoPermisoComponente.objects.filter(
             grupo_id__in=grupos_ids,
@@ -79,35 +123,20 @@ class HasComponentPermission(BasePermission):
 
         has_perm = perms.filter(**{action_field: True}).exists()
 
-        # Fallback seguro para CLIENT en mÃ³vil:
-        # permite operar componentes cliente aun si el seed base del tenant no se ejecutÃ³.
-        if not has_perm:
-            if (
-                role_name == "ADMIN"
-                and getattr(user, "veterinaria_id", None) == tenant_id
-            ):
-                return True
-            if (
-                role_name == "CLIENT"
-                and component in self.client_component_fallback
-                and getattr(user, "veterinaria_id", None) == tenant_id
-            ):
-                return True
-            # Compatibilidad para componentes legacy de inventario:
-            # si un ADMIN tiene permiso de ver el componente en su tenant,
-            # se permite escritura para no bloquear flujos existentes.
-            if (
-                role_name == "ADMIN"
-                and component in self.admin_write_fallback_components
-                and getattr(user, "veterinaria_id", None) == tenant_id
-                and perms.filter(puede_ver=True).exists()
-            ):
-                return True
+        if not has_perm and self._has_role_fallback(
+            role_name=role_name,
+            component=component,
+            action_field=action_field,
+            tenant_id=tenant_id,
+            user=user,
+            perms=perms,
+        ):
+            return True
 
         if not has_perm:
             from ..services.bitacora_register_service import BitacoraService
             from ..events.bitacora_events import BitacoraAccion, BitacoraModulo, BitacoraResultado
-            
+
             BitacoraService.registrar_evento(
                 accion=BitacoraAccion.ACCESO_DENEGADO,
                 descripcion=f"Intento de acceso no autorizado al componente '{component}' ({request.method}).",
@@ -118,8 +147,8 @@ class HasComponentPermission(BasePermission):
                 metadatos={
                     "componente": component,
                     "metodo": request.method,
-                    "path": request.path
-                }
+                    "path": request.path,
+                },
             )
 
         return has_perm

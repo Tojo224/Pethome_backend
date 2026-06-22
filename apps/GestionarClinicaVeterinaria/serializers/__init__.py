@@ -5,5 +5,6 @@ from .historial_clinico_serializer import HistorialClinicoSerializer
 from .receta_serializer import RecetaSerializer
 from .tratamiento_serializer import TratamientoSerializer
 from .vacuna_aplicada_serializer import VacunaAplicadaSerializer
+from .plan_sanitario_preventivo_serializer import PlanSanitarioPreventivoSerializer
 from .veterinario_serializer import VeterinarioOptionSerializer
 from .veterinaria_serializer import VeterinariaSerializer

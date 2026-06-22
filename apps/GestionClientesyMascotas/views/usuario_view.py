@@ -1,6 +1,9 @@
 from rest_framework import generics, serializers
+from rest_framework.response import Response
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
+from apps.AutenticacionySeguridad.enums.roles import RoleEnum
 from apps.AutenticacionySeguridad.permissions.tenant_rbac import HasComponentPermission
 from apps.AutenticacionySeguridad.events.bitacora_events import BitacoraAccion, BitacoraModulo, BitacoraResultado
 from apps.AutenticacionySeguridad.services.bitacora_register_service import BitacoraService
@@ -35,6 +38,13 @@ class UsuarioListView(generics.ListAPIView):
 
     @extend_schema(tags=["Clientes"], responses={200: UsuarioListSerializer})
     def get(self, request, *args, **kwargs):
+        role_name = (getattr(getattr(request.user, "role", None), "nombre", "") or "").upper()
+        if role_name == RoleEnum.CLIENT.value:
+            return Response(
+                {"detail": "No tienes permisos para consultar la lista general de clientes."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         _registrar_bitacora_seguro(
             BitacoraService.registrar_evento,
             accion=BitacoraAccion.USUARIO_CONSULTADO,

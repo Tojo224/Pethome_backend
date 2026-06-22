@@ -4,6 +4,7 @@ from ..models.consulta_clinica import ConsultaClinica
 from ..models.receta import Receta
 from ..models.tratamiento import Tratamiento
 from ..models.vacuna_aplicada import VacunaAplicada
+from ..models.plan_sanitario_preventivo import PlanSanitarioPreventivo
 
 class HistorialClinicoSelector:
     @staticmethod
@@ -62,3 +63,29 @@ class VacunaSelector:
             consulta_clinica__historial_clinico__mascota_id=mascota_id,
             consulta_clinica__veterinaria_id=veterinaria_id
         ).select_related("usuario_veterinario").order_by("-fecha_aplicacion")
+
+
+class PlanSanitarioPreventivoSelector:
+    @staticmethod
+    def get_planes_by_mascota(mascota_id, veterinaria_id):
+        return (
+            PlanSanitarioPreventivo.objects.filter(
+                mascota_id=mascota_id,
+                veterinaria_id=veterinaria_id,
+                estado=True,
+            )
+            .select_related("mascota", "usuario_registro", "usuario_registro__perfil")
+            .order_by("fecha_programada", "-fecha_creacion")
+        )
+
+    @staticmethod
+    def get_plan_detail(plan_id, veterinaria_id):
+        return (
+            PlanSanitarioPreventivo.objects.filter(
+                id_plan_sanitario=plan_id,
+                veterinaria_id=veterinaria_id,
+                estado=True,
+            )
+            .select_related("mascota", "usuario_registro", "usuario_registro__perfil")
+            .first()
+        )

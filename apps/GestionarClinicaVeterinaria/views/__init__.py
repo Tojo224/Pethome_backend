@@ -11,3 +11,8 @@ from .veterinaria_view import (
     VeterinariaDetailView,
     VeterinariaPlanUpdateView,
 )
+from .plan_sanitario_preventivo_view import (
+    PlanSanitarioClientesFilterView,
+    PlanSanitarioPorMascotaView,
+    PlanSanitarioDetailView,
+)

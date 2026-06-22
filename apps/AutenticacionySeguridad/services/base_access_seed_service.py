@@ -92,6 +92,7 @@ class BaseAccessSeedService:
         ComponentDef("CLI_RECETAS", "Recetas", "ACCION", "CLINICA", None, "AMBOS", "MENU_CITAS", 217),
         ComponentDef("CLI_TRATAMIENTOS", "Tratamientos", "ACCION", "CLINICA", None, "AMBOS", "MENU_CITAS", 218),
         ComponentDef("CLI_VACUNAS", "Vacunas", "ACCION", "CLINICA", None, "AMBOS", "MENU_CITAS", 219),
+        ComponentDef("CLI_PLAN_SANITARIO", "Plan sanitario preventivo", "ACCION", "CLINICA", None, "AMBOS", "MENU_CITAS", 2191),
         ComponentDef("SERV_CATEGORIAS", "Categorías servicios", "ACCION", "SERVICIOS", None, "WEB", "MENU_SERVICIOS", 220),
         ComponentDef("SERV_SERVICIOS", "Servicios", "ACCION", "SERVICIOS", None, "AMBOS", "MENU_SERVICIOS", 221),
         ComponentDef("SERV_PRECIOS", "Precios servicios", "ACCION", "SERVICIOS", None, "AMBOS", "MENU_SERVICIOS", 222),
@@ -138,6 +139,7 @@ class BaseAccessSeedService:
         "CLI_RECETAS",
         "CLI_TRATAMIENTOS",
         "CLI_VACUNAS",
+        "CLI_PLAN_SANITARIO",
         "SERV_CITAS",
     }
     RECEPCION_CODES: Set[str] = {

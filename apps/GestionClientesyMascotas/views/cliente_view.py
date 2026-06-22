@@ -44,6 +44,11 @@ class ClienteListCreateView(TenantViewMixin, APIView):
     permission_classes = [IsAuthenticated, HasComponentPermission]
     rbac_component = "CLI_CLIENTES"
 
+    def _is_client_role(self, request):
+        return (
+            getattr(getattr(request.user, "role", None), "nombre", "") or ""
+        ).upper() == Rol.RolName.CLIENT
+
     def get_queryset(self):
         return PerfilSelector.filter_perfiles(
             veterinaria_id=self.get_tenant_id(),
@@ -62,6 +67,12 @@ class ClienteListCreateView(TenantViewMixin, APIView):
         responses={200: PerfilSerializer},
     )
     def get(self, request):
+        if self._is_client_role(request):
+            return Response(
+                {"detail": "No tienes permisos para consultar la lista general de clientes."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         queryset = PerfilSelector.filter_perfiles(
             veterinaria_id=self.get_tenant_id(),
             rol=Rol.RolName.CLIENT,
@@ -94,6 +105,12 @@ class ClienteListCreateView(TenantViewMixin, APIView):
         responses={201: PerfilSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
     )
     def post(self, request):
+        if self._is_client_role(request):
+            return Response(
+                {"detail": "No tienes permisos para crear clientes desde este endpoint."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         data = request.data.copy()
 
         try:
@@ -145,6 +162,11 @@ class ClienteDetailView(TenantViewMixin, APIView):
     permission_classes = [IsAuthenticated, HasComponentPermission]
     rbac_component = "CLI_CLIENTES"
 
+    def _is_client_role(self, request):
+        return (
+            getattr(getattr(request.user, "role", None), "nombre", "") or ""
+        ).upper() == Rol.RolName.CLIENT
+
     def get_queryset(self):
         return PerfilSelector.filter_perfiles(
             veterinaria_id=self.get_tenant_id(),
@@ -160,6 +182,12 @@ class ClienteDetailView(TenantViewMixin, APIView):
         responses={200: PerfilSerializer, 404: OpenApiResponse(description="No encontrado.")},
     )
     def get(self, request, pk):
+        if self._is_client_role(request):
+            return Response(
+                {"detail": "No tienes permisos para consultar clientes desde este endpoint."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         perfil = self.get_object(pk)
         serializer = PerfilSerializer(perfil)
 
@@ -181,6 +209,12 @@ class ClienteDetailView(TenantViewMixin, APIView):
         responses={200: PerfilSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
     )
     def put(self, request, pk):
+        if self._is_client_role(request):
+            return Response(
+                {"detail": "No tienes permisos para editar clientes desde este endpoint."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         perfil = self.get_object(pk)
         serializer = PerfilUpdateSerializer(perfil, data=request.data)
         try:
@@ -225,6 +259,12 @@ class ClienteDetailView(TenantViewMixin, APIView):
         responses={200: PerfilSerializer, 400: OpenApiResponse(description="Datos inválidos.")},
     )
     def patch(self, request, pk):
+        if self._is_client_role(request):
+            return Response(
+                {"detail": "No tienes permisos para editar clientes desde este endpoint."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         perfil = self.get_object(pk)
         serializer = PerfilUpdateSerializer(perfil, data=request.data, partial=True)
         try:
@@ -268,6 +308,12 @@ class ClienteDetailView(TenantViewMixin, APIView):
         responses={204: OpenApiResponse(description="Cliente desactivado.")},
     )
     def delete(self, request, pk):
+        if self._is_client_role(request):
+            return Response(
+                {"detail": "No tienes permisos para desactivar clientes desde este endpoint."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         perfil = self.get_object(pk)
         deactivate_user_profile(perfil=perfil)
 
